@@ -60,6 +60,7 @@ class Address(BaseModel):
     organization = models.OneToOneField(
         Organization, on_delete=models.CASCADE, related_name="address"
     )
+    country = models.CharField()  # Needs to be modify
     city = models.CharField(max_length=255)
     street = models.CharField(max_length=255)
     zip_code = models.CharField(max_length=255)

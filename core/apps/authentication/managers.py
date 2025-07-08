@@ -3,27 +3,33 @@ from django.contrib.auth.models import BaseUserManager
 
 class UserManager(BaseUserManager):
     """
-    Custom manager for User model where the phone number is the unique identifier.
+    Custom manager for User model where the email is the unique identifier.
     """
 
-    def create_user(self, phone, password=None, **extra_fields):
+    def create_user(self, email, password=None, **extra_fields):
         """
-        Creates and saves a regular user with the given phone number and password.
+        Creates and saves a regular user with the given email and password.
         """
-        if not phone:
-            raise ValueError("The phone number is required")
+        if not email:
+            raise ValueError("The email address is required")
+
+        if not password:
+            raise ValueError("The password is required")
+
+        email = self.normalize_email(email)
+        email = email.lower()
 
         # Additional default or extra field handling
         extra_fields.setdefault("is_active", True)
 
-        user = self.model(phone=phone, **extra_fields)
+        user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, phone, password=None, **extra_fields):
+    def create_superuser(self, email, password=None, **extra_fields):
         """
-        Creates and saves a superuser with the given phone number and password.
+        Creates and saves a superuser with the given email and password.
         """
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_staff", True)
@@ -36,4 +42,4 @@ class UserManager(BaseUserManager):
         if not extra_fields.get("is_admin"):
             raise ValueError("Superuser must have is_admin=True.")
 
-        return self.create_user(phone, password, **extra_fields)
+        return self.create_user(email, password, **extra_fields)
