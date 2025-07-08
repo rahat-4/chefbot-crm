@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.db import models
 
 from phonenumber_field.modelfields import PhoneNumberField
@@ -6,6 +7,8 @@ from common.models import BaseModel
 
 from .choices import OrganizationStatus, OrganizationType, DaysOfWeek
 from .utils import get_organization_media_path_prefix
+
+User = get_user_model()
 
 
 class Organization(BaseModel):
@@ -36,6 +39,21 @@ class Organization(BaseModel):
 
     def __str__(self):
         return self.name
+
+
+class OrganizationUser(BaseModel):
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="organization_users"
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="organization_users"
+    )
+
+    class Meta:
+        unique_together = ("organization", "user")
+
+    def __str__(self):
+        return f"{self.organization.name} - {self.user.name}"
 
 
 class Address(BaseModel):
