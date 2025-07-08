@@ -1,15 +1,16 @@
-FROM python:3.13-alpine
+FROM python:3.11-slim
 
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Set the working directory inside the container
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    netcat gcc postgresql-client libpq-dev
+    gcc postgresql-client libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install pipenv or requirements
 COPY ../requirements.txt /app/requirements.txt
