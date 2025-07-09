@@ -15,6 +15,13 @@ class Organization(BaseModel):
     logo = models.ImageField(
         upload_to=get_organization_media_path_prefix, blank=True, null=True
     )
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="children",
+    )
     name = models.CharField(max_length=255, unique=True)
     phone = PhoneNumberField(unique=True)
     email = models.EmailField(max_length=255, unique=True)

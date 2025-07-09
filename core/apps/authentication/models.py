@@ -81,15 +81,15 @@ class RegistrationSession(BaseModel):
         default=UserType.OWNER,
     )
 
-    # Organization
-    organization_logo = models.ImageField(
-        upload_to=get_user_media_path_prefix, blank=True, null=True
-    )
-    organization_name = models.CharField(max_length=255)
-    organization_phone = PhoneNumberField(unique=True, blank=True, null=True)
-    organization_email = models.EmailField(max_length=255, unique=True)
-    organization_description = models.TextField(blank=True, null=True)
-    organization_website = models.URLField(blank=True, null=True)
+    # # Organization
+    # organization_logo = models.ImageField(
+    #     upload_to=get_user_media_path_prefix, blank=True, null=True
+    # )
+    # organization_name = models.CharField(max_length=255)
+    # organization_phone = PhoneNumberField(unique=True, blank=True, null=True)
+    # organization_email = models.EmailField(max_length=255, unique=True)
+    # organization_description = models.TextField(blank=True, null=True)
+    # organization_website = models.URLField(blank=True, null=True)
 
     def __str__(self):
-        return f"UID: {self.uid} | User Email: {self.email} | Organization Name: {self.organization_name}"
+        return f"UID: {self.uid} | User Email: {self.email}"
