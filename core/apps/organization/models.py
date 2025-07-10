@@ -1,0 +1,104 @@
+from django.contrib.auth import get_user_model
+from django.db import models
+
+from phonenumber_field.modelfields import PhoneNumberField
+
+from common.models import BaseModel
+
+from .choices import OrganizationStatus, OrganizationType, DaysOfWeek
+from .utils import get_organization_media_path_prefix
+
+User = get_user_model()
+
+
+class Organization(BaseModel):
+    logo = models.ImageField(
+        upload_to=get_organization_media_path_prefix, blank=True, null=True
+    )
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="children",
+    )
+    name = models.CharField(max_length=255, unique=True)
+    phone = PhoneNumberField(unique=True)
+    email = models.EmailField(max_length=255, unique=True)
+    description = models.TextField(blank=True, null=True)
+    website = models.URLField(blank=True, null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=OrganizationStatus.choices,
+        default=OrganizationStatus.ACTIVE,
+    )
+    organization_type = models.CharField(
+        max_length=20,
+        choices=OrganizationType.choices,
+        default=OrganizationType.RESTAURANT,
+    )
+
+    def save(self, *args, **kwargs):
+        if self.email:
+            # Normalize and lowercase email
+            self.email = self.email.strip().lower()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class OrganizationUser(BaseModel):
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="organization_users"
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="organization_users"
+    )
+
+    class Meta:
+        unique_together = ("organization", "user")
+
+    def __str__(self):
+        return f"{self.organization.name} - {self.user.name}"
+
+
+class Address(BaseModel):
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="address"
+    )
+    country = models.CharField()  # Needs to be modify
+    city = models.CharField(max_length=255)
+    street = models.CharField(max_length=255)
+    zip_code = models.CharField(max_length=255)
+
+    def __str__(self):
+        return f"{self.city}, {self.street}, {self.zip_code}"
+
+    class Meta:
+        verbose_name_plural = "Addresses"
+
+
+class Services(BaseModel):
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="organization_services"
+    )
+    name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True, null=True)
+    is_enabled = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class OpeningHours(BaseModel):
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="opening_hours"
+    )
+    day = models.CharField(max_length=20, choices=DaysOfWeek.choices)
+    open_time = models.TimeField(blank=True, null=True)
+    close_time = models.TimeField(blank=True, null=True)
+    is_closed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.day}: {self.open_time} - {self.close_time}"
