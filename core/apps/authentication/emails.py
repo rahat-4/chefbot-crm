@@ -29,7 +29,7 @@ def send_email_confirmation(to_email: str, username: str, session_uid: str) -> b
     If you didn’t sign up, you can safely ignore this email.
   </p>
   <p style="font-size: 14px; color: #888;">
-    — The Team
+    — Raptor Tech
   </p>
 </div>
 """,
@@ -37,7 +37,7 @@ def send_email_confirmation(to_email: str, username: str, session_uid: str) -> b
     message.reply_to = Email("raptortech2025@gmail.com")
 
     try:
-        sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
+        sg = SendGridAPIClient(settings.EMAIL_SEND_API_KEY)
 
         response = sg.send(message)
 

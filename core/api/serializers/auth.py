@@ -1,12 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
 
 from rest_framework import serializers
 
 from apps.authentication.models import RegistrationSession
 from apps.authentication.choices import UserType
+
+User = get_user_model()
 
 
 class UserRegistrationSessionSerializer(serializers.ModelSerializer):
@@ -33,37 +34,43 @@ class UserPasswordSetSerializer(serializers.Serializer):
     confirm_password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
+        errors = {}
+
         password = attrs.get("password")
         confirm_password = attrs.get("confirm_password")
 
-        if password != confirm_password:
-            raise serializers.ValidationError("Passwords do not match.")
+        session_uid = self.context["view"].kwargs.get("session_uid")
+        session = RegistrationSession.objects.filter(uid=session_uid).first()
+
+        if not session:
+            errors["session"] = ["Invalid session."]
 
         try:
             validate_password(password)
         except DjangoValidationError as e:
-            raise serializers.ValidationError({"password": e.messages})
+            errors["password"] = e.messages
+
+        if password != confirm_password:
+            errors["confirm_password"] = ["Password do not match."]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        self.session = session
 
         return attrs
 
     def create(self, validated_data):
-        with transaction.atomic():
-            session_uid = self.context["view"].kwargs.get("session_uid")
-            session = RegistrationSession.objects.filter(uid=session_uid).first()
+        user = User.objects.create_user(
+            email=self.session.email,
+            password=validated_data["password"],
+            first_name=self.session.first_name,
+            last_name=self.session.last_name,
+            phone=self.session.phone,
+            gender=self.session.gender,
+            date_of_birth=self.session.date_of_birth,
+        )
 
-            if not session:
-                raise serializers.ValidationError("Invalid session UID.")
+        self.session.delete()
 
-            user = get_user_model().objects.create_user(
-                email=session.email,
-                password=validated_data["password"],
-                first_name=session.first_name,
-                last_name=session.last_name,
-                phone=session.phone,
-                gender=session.gender,
-                date_of_birth=session.date_of_birth,
-            )
-
-            session.delete()
-
-            return user
+        return user
