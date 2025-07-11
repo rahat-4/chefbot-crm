@@ -1,0 +1,113 @@
+from django.db import transaction
+
+from rest_framework import serializers
+
+from apps.organization.models import (
+    Organization,
+    OrganizationUser,
+    OpeningHours,
+    Services,
+    OrganizationServices,
+)
+
+from apps.organization.choices import OrganizationType
+
+
+class ServicesSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Services
+        fields = ["uid", "name", "description"]
+
+
+class OpeningHoursSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = OpeningHours
+        exclude = ["organization", "created_at", "updated_at"]
+
+
+class RestaurantSerializer(serializers.ModelSerializer):
+    service_list = serializers.SlugRelatedField(
+        queryset=Services.objects.all(), many=True, slug_field="uid", write_only=True
+    )
+    services = serializers.SerializerMethodField()
+    opening_hours = OpeningHoursSerializer(many=True)
+
+    class Meta:
+        model = Organization
+        fields = [
+            "uid",
+            "logo",
+            "name",
+            "phone",
+            "email",
+            "description",
+            "website",
+            "country",
+            "city",
+            "street",
+            "zip_code",
+            "service_list",
+            "services",
+            "opening_hours",
+        ]
+
+    def get_services(self, obj):
+        services = Services.objects.filter(organization_services__organization=obj)
+        return ServicesSerializer(services, many=True).data
+
+    def create(self, validated_data):
+        with transaction.atomic():
+            service_list = validated_data.pop("service_list", [])
+            opening_hours = validated_data.pop("opening_hours", [])
+            organization = Organization.objects.create(
+                organization_type=OrganizationType.RESTAURANT, **validated_data
+            )
+
+            OrganizationUser.objects.create(
+                organization=organization,
+                user=self.context["request"].user,
+            )
+
+            for service in service_list:
+                OrganizationServices.objects.create(
+                    organization=organization, service=service
+                )
+
+            for opening_hour in opening_hours:
+                OpeningHours.objects.create(organization=organization, **opening_hour)
+            return organization
+
+    def update(self, instance, validated_data):
+        with transaction.atomic():
+            service_list = validated_data.pop("service_list", [])
+            opening_hours = validated_data.pop("opening_hours", [])
+
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+
+            instance.save()
+
+            # Services
+            if service_list is not None:
+                OrganizationServices.objects.update_or_create(
+                    organization=instance,
+                    service__in=service_list,
+                    defaults={"organization": instance},
+                )
+
+            # Opening Hours
+            if opening_hours is not None:
+                for opening_hour in opening_hours:
+                    OpeningHours.objects.update_or_create(
+                        organization=instance,
+                        day=opening_hour["day"],
+                        defaults={
+                            "organization": instance,
+                            "open_time": opening_hour["open_time"],
+                            "close_time": opening_hour["close_time"],
+                            "is_closed": opening_hour["is_closed"],
+                        },
+                    )
+            return instance
