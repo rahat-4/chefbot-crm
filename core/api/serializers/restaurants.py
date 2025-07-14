@@ -91,23 +91,15 @@ class RestaurantSerializer(serializers.ModelSerializer):
 
             # Services
             if service_list is not None:
-                OrganizationServices.objects.update_or_create(
-                    organization=instance,
-                    service__in=service_list,
-                    defaults={"organization": instance},
-                )
+                OrganizationServices.objects.filter(organization=instance).delete()
+                for service in service_list:
+                    OrganizationServices.objects.create(
+                        organization=instance, service=service
+                    )
 
             # Opening Hours
             if opening_hours is not None:
+                OpeningHours.objects.filter(organization=instance).delete()
                 for opening_hour in opening_hours:
-                    OpeningHours.objects.update_or_create(
-                        organization=instance,
-                        day=opening_hour["day"],
-                        defaults={
-                            "organization": instance,
-                            "open_time": opening_hour["open_time"],
-                            "close_time": opening_hour["close_time"],
-                            "is_closed": opening_hour["is_closed"],
-                        },
-                    )
+                    OpeningHours.objects.create(organization=instance, **opening_hour)
             return instance

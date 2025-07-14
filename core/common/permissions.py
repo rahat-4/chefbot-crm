@@ -1,5 +1,7 @@
 from rest_framework.permissions import BasePermission
 
+from apps.authentication.choices import UserType
+
 
 class IsAdmin(BasePermission):
     """
@@ -20,4 +22,8 @@ class IsOwner(BasePermission):
 
     def has_permission(self, request, view):
         # Check if the user is authenticated and is an owner
-        return request.user and request.user.is_authenticated and request.user.is_owner
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.user_type == UserType.OWNER
+        )

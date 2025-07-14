@@ -1,5 +1,4 @@
 from rest_framework.generics import (
-    CreateAPIView,
     ListCreateAPIView,
     RetrieveUpdateAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -21,7 +20,7 @@ class ServicesListView(ListCreateAPIView):
         if self.request.method == "POST":
             self.permission_classes = [IsAdmin]
         else:
-            self.permission_classes = [IsOwner]
+            self.permission_classes = [IsAdmin | IsOwner]
         return super().get_permissions()
 
 
@@ -36,10 +35,16 @@ class ServiceDetailView(RetrieveUpdateDestroyAPIView):
         return self.queryset.get(uid=service_uid)
 
 
-class RestaurantCreateView(CreateAPIView):
+class RestaurantCreateView(ListCreateAPIView):
     queryset = Organization.objects.all()
     serializer_class = RestaurantSerializer
-    permission_classes = [IsOwner]
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            self.permission_classes = [IsOwner]
+        else:
+            self.permission_classes = [IsAdmin]
+        return super().get_permissions()
 
 
 class RestaurantDetailView(RetrieveUpdateAPIView):
