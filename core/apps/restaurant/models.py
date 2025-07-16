@@ -34,7 +34,7 @@ class Menu(BaseModel):
 
     # AI-generated
     allergens = ArrayField(models.CharField(max_length=255), blank=True, null=True)
-    macronutrients = models.CharField(max_length=100, blank=True, null=True)
+    macronutrients = models.JSONField(default=dict, blank=True, null=True)
 
     # Upselling
     upselling_priority = models.PositiveSmallIntegerField(default=1)

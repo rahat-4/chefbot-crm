@@ -15,6 +15,7 @@ from ..serializers.restaurants import (
     RestaurantSerializer,
     ServicesSerializer,
     RestaurantMenuSerializer,
+    RestaurantMenuAllergensSerializer,
 )
 
 
@@ -103,3 +104,21 @@ class RestaurantMenuDetailView(RetrieveUpdateDestroyAPIView):
         instance.save()
 
         return instance
+
+
+class RestaurantMenuAllergensView(RetrieveUpdateAPIView):
+    queryset = Menu.objects.filter(status=MenuStatus.ACTIVE)
+    serializer_class = RestaurantMenuAllergensSerializer
+    permission_classes = [IsOwner]
+
+    def get_object(self):
+        organization_uid = self.kwargs.get("restaurant_uid")
+        menu_uid = self.kwargs.get("menu_uid")
+
+        return self.queryset.get(organization__uid=organization_uid, uid=menu_uid)
+
+    def perform_update(self, serializer):
+        serializer.save(
+            organization=self.request.user.organization_users.first().organization
+        )
+        return super().perform_update(serializer)

@@ -149,3 +149,10 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
             validated_data["macronutrients"] = response["macronutrients"]
 
         return super().update(instance, validated_data)
+
+
+class RestaurantMenuAllergensSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Menu
+        fields = ["allergens"]
