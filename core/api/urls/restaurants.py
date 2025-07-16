@@ -1,6 +1,8 @@
 from django.urls import path
 
 from ..views.restaurants import (
+    RestaurantMenuDetailView,
+    RestaurantMenuListView,
     RestaurantCreateView,
     RestaurantDetailView,
     ServicesListView,
@@ -9,15 +11,25 @@ from ..views.restaurants import (
 
 urlpatterns = [
     path(
-        "/services/<uuid:service_uid>",
-        ServiceDetailView.as_view(),
-        name="service-detail",
+        "/<uuid:restaurant_uid>/menu/<uuid:menu_uid>",
+        RestaurantMenuDetailView.as_view(),
+        name="restaurant.menu-detail",
     ),
-    path("/services", ServicesListView.as_view(), name="services-list"),
+    path(
+        "/<uuid:restaurant_uid>/menu",
+        RestaurantMenuListView.as_view(),
+        name="restaurant.menu-list",
+    ),
     path(
         "/<uuid:restaurant_uid>",
         RestaurantDetailView.as_view(),
-        name="restaurant-detail",
+        name="restaurant.detail",
     ),
-    path("", RestaurantCreateView.as_view(), name="restaurant-create"),
+    path("", RestaurantCreateView.as_view(), name="restaurant.list"),
+    path(
+        "/services/<uuid:service_uid>",
+        ServiceDetailView.as_view(),
+        name="restaurant.service-detail",
+    ),
+    path("/services", ServicesListView.as_view(), name="restaurant.services-list"),
 ]

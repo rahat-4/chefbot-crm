@@ -15,3 +15,9 @@ class ClassificationChoices(models.TextChoices):
     FISH = "FISH", "Fish"
     VEGETARIAN = "VEGETARIAN", "Vegetarian"
     VEGAN = "VEGAN", "Vegan"
+
+
+class MenuStatus(models.TextChoices):
+    ACTIVE = "ACTIVE", "Active"
+    INACTIVE = "INACTIVE", "Inactive"
+    DELETED = "DELETED", "Deleted"

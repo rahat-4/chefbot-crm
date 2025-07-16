@@ -2,6 +2,9 @@ from django.db import transaction
 
 from rest_framework import serializers
 
+from common.openai_api import generate_nutrition_info
+
+from apps.organization.choices import OrganizationType
 from apps.organization.models import (
     Organization,
     OrganizationUser,
@@ -9,8 +12,8 @@ from apps.organization.models import (
     Services,
     OrganizationServices,
 )
-
-from apps.organization.choices import OrganizationType
+from apps.restaurant.choices import CategoryChoices, ClassificationChoices
+from apps.restaurant.models import Menu
 
 
 class ServicesSerializer(serializers.ModelSerializer):
@@ -103,3 +106,46 @@ class RestaurantSerializer(serializers.ModelSerializer):
                 for opening_hour in opening_hours:
                     OpeningHours.objects.create(organization=instance, **opening_hour)
             return instance
+
+
+class RestaurantMenuSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Menu
+        fields = [
+            "uid",
+            "image",
+            "name",
+            "description",
+            "price",
+            "ingredients",
+            "category",
+            "classification",
+            "allergens",
+            "macronutrients",
+            "upselling_priority",
+            "enable_upselling",
+            "recommended_combinations",
+        ]
+
+    def create(self, validated_data):
+        ingredients = validated_data.get("ingredients", [])
+
+        if ingredients:
+            response = generate_nutrition_info(ingredients)
+
+            validated_data["allergens"] = response["allergens"]
+            validated_data["macronutrients"] = response["macronutrients"]
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        ingredients = validated_data.get("ingredients", [])
+
+        if ingredients:
+            response = generate_nutrition_info(ingredients)
+
+            validated_data["allergens"] = response["allergens"]
+            validated_data["macronutrients"] = response["macronutrients"]
+
+        return super().update(instance, validated_data)

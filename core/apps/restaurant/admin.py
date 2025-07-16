@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Dish
+from .models import Menu
 
 
-admin.site.register(Dish)
+admin.site.register(Menu)
