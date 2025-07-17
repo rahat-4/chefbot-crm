@@ -22,8 +22,10 @@ class Organization(BaseModel):
         null=True,
         related_name="children",
     )
+    whatsapp_number = models.CharField(
+        max_length=255, blank=True, null=True
+    )  # Needs to be modify
     name = models.CharField(max_length=255)
-    phone = PhoneNumberField(blank=True, null=True)
     email = models.EmailField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     website = models.URLField(blank=True, null=True)
