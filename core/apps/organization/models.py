@@ -22,9 +22,11 @@ class Organization(BaseModel):
         null=True,
         related_name="children",
     )
-    name = models.CharField(max_length=255, unique=True)
-    phone = PhoneNumberField(unique=True)
-    email = models.EmailField(max_length=255, unique=True)
+    whatsapp_number = models.CharField(
+        max_length=255, blank=True, null=True
+    )  # Needs to be modify
+    name = models.CharField(max_length=255)
+    email = models.EmailField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     website = models.URLField(blank=True, null=True)
     status = models.CharField(
@@ -37,6 +39,10 @@ class Organization(BaseModel):
         choices=OrganizationType.choices,
         default=OrganizationType.RESTAURANT,
     )
+    country = models.CharField()  # Needs to be modify
+    city = models.CharField(max_length=255)
+    street = models.CharField(max_length=255)
+    zip_code = models.CharField(max_length=255)
 
     def save(self, *args, **kwargs):
         if self.email:
@@ -63,32 +69,27 @@ class OrganizationUser(BaseModel):
         return f"{self.organization.name} - {self.user.name}"
 
 
-class Address(BaseModel):
-    organization = models.OneToOneField(
-        Organization, on_delete=models.CASCADE, related_name="address"
-    )
-    country = models.CharField()  # Needs to be modify
-    city = models.CharField(max_length=255)
-    street = models.CharField(max_length=255)
-    zip_code = models.CharField(max_length=255)
-
-    def __str__(self):
-        return f"{self.city}, {self.street}, {self.zip_code}"
-
-    class Meta:
-        verbose_name_plural = "Addresses"
-
-
 class Services(BaseModel):
-    organization = models.ForeignKey(
-        Organization, on_delete=models.CASCADE, related_name="organization_services"
-    )
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True, null=True)
-    is_enabled = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
+
+
+class OrganizationServices(BaseModel):
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="get_services"
+    )
+    service = models.ForeignKey(
+        Services, on_delete=models.CASCADE, related_name="organization_services"
+    )
+
+    class Meta:
+        unique_together = ("organization", "service")
+
+    def __str__(self):
+        return f"{self.organization.name} - {self.service.name}"
 
 
 class OpeningHours(BaseModel):

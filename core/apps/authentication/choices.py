@@ -15,5 +15,6 @@ class UserGender(models.TextChoices):
 
 
 class UserType(models.TextChoices):
+    ADMIN = "ADMIN", "Admin"
     OWNER = "OWNER", "Owner"
     CUSTOMER = "CUSTOMER", "Customer"

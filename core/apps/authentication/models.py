@@ -65,7 +65,7 @@ class RegistrationSession(BaseModel):
     )
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
-    phone = PhoneNumberField(unique=True, blank=True, null=True)
+    phone = PhoneNumberField(blank=True, null=True)
     email = models.EmailField(max_length=255, unique=True)
     gender = models.CharField(
         max_length=20,
