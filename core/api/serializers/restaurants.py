@@ -43,7 +43,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
             "uid",
             "logo",
             "name",
-            "phone",
+            "whatsapp_number",
             "email",
             "description",
             "website",
