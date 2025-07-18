@@ -14,6 +14,7 @@ class UserRegistrationSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = RegistrationSession
         fields = [
+            "uid",
             "avatar",
             "first_name",
             "last_name",
