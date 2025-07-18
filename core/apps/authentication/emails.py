@@ -20,7 +20,7 @@ def send_email_confirmation(to_email: str, username: str, session_uid: str) -> b
     Please confirm your email address to activate your account. Once confirmed, you’ll be redirected to set your password and get started.
   </p>
   <div style="text-align: center; margin: 30px 0;">
-    <a href="http://194.164.77.123:8000/api/auth/{session_uid}/password-set"
+    <a href="http://localhost:3000/set-password?sessionId={session_uid}"
        style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
       Confirm Email & Set Password
     </a>
