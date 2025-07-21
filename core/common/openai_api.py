@@ -13,7 +13,7 @@ def generate_nutrition_info(ingredients: list) -> dict:
         ingredients (list): List of ingredient names
 
     Returns:
-        dict: Dictionary containing allergens and macronutrients info
+        dict: Dictionary containing allergens and macronutrients info with units
     """
 
     try:
@@ -88,12 +88,36 @@ def generate_nutrition_info(ingredients: list) -> dict:
             ):
                 raise ValueError("Invalid response structure")
 
-            # Ensure macronutrients are numeric and clean up any string values
+            # Ensure macronutrients are numeric and add appropriate units
             macros = nutrition_data["macronutrients"]
             if not isinstance(macros, dict):
                 raise ValueError("Macronutrients must be a dictionary")
 
-            # Convert all macronutrient values to proper numeric format
+            # Define unit mapping for different nutrients
+            unit_mapping = {
+                "calories": "cal",
+                "protein": "g",
+                "carbohydrates": "g",
+                "fat": "g",
+                "fiber": "g",
+                "sugar": "g",
+                "sodium": "mg",
+                "vitamin_c": "mg",
+                "calcium": "mg",
+                "iron": "mg",
+                "potassium": "mg",
+                "magnesium": "mg",
+                "zinc": "mg",
+                "vitamin_a": "µg",
+                "vitamin_d": "µg",
+                "vitamin_e": "mg",
+                "vitamin_k": "µg",
+                "folate": "µg",
+                "vitamin_b12": "µg",
+                "phosphorus": "mg",
+            }
+
+            # Convert all macronutrient values to proper numeric format and add units
             for key, value in macros.items():
                 try:
                     # Remove common units and convert to float/int
@@ -102,16 +126,24 @@ def generate_nutrition_info(ingredients: list) -> dict:
                         .replace("g", "")
                         .replace("mg", "")
                         .replace("kcal", "")
+                        .replace("cal", "")
                         .replace("µg", "")
                         .strip()
                     )
-                    macros[key] = (
+                    numeric_value = (
                         float(cleaned_value)
                         if "." in cleaned_value
                         else int(cleaned_value)
                     )
+
+                    # Add appropriate unit based on nutrient type
+                    unit = unit_mapping.get(key.lower(), "g")  # Default to grams
+                    macros[key] = f"{numeric_value}{unit}"
+
                 except (ValueError, TypeError):
-                    macros[key] = 0
+                    # If conversion fails, set to 0 with appropriate unit
+                    unit = unit_mapping.get(key.lower(), "g")
+                    macros[key] = f"0{unit}"
 
             return nutrition_data
 

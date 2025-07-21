@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
 from apps.authentication.models import RegistrationSession
 
 from ..serializers.auth import (
@@ -33,3 +35,9 @@ class UserPasswordSetView(APIView):
         return Response(
             {"password": "Password set successfully."}, status=status.HTTP_200_OK
         )
+
+
+class UserLoginView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        email = request.data.get("email")
+        password = request.data.get("password")
