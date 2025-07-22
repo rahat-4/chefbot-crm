@@ -21,3 +21,10 @@ class MenuStatus(models.TextChoices):
     ACTIVE = "ACTIVE", "Active"
     INACTIVE = "INACTIVE", "Inactive"
     DELETED = "DELETED", "Deleted"
+
+
+class MenuRewardType(models.TextChoices):
+    DRINK = "DRINK", "Drink"
+    DESSERT = "DESSERT", "Dessert"
+    DISCOUNT = "DISCOUNT", "Discount"
+    CUSTOM = "CUSTOM", "Custom"

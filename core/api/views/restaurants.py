@@ -42,16 +42,17 @@ class ServiceDetailView(RetrieveUpdateDestroyAPIView):
         return self.queryset.get(uid=service_uid)
 
 
-class RestaurantCreateView(ListCreateAPIView):
+class RestaurantListView(ListCreateAPIView):
     queryset = Organization.objects.all()
     serializer_class = RestaurantSerializer
+    permission_classes = [IsOwner]
 
-    def get_permissions(self):
-        if self.request.method == "POST":
-            self.permission_classes = [IsOwner]
-        else:
-            self.permission_classes = [IsAdmin]
-        return super().get_permissions()
+    # def get_permissions(self):
+    #     if self.request.method == "POST":
+    #         self.permission_classes = [IsOwner]
+    #     else:
+    #         self.permission_classes = [IsAdmin]
+    #     return super().get_permissions()
 
 
 class RestaurantDetailView(RetrieveUpdateAPIView):

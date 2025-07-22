@@ -206,6 +206,11 @@ LOGGING = {
             "handlers": ["console", "file"],
             "level": "INFO",
             "propagate": True,
+        },
+        "api.views.whatsapp": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
         }
-    },
+    }
 }
