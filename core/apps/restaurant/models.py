@@ -61,8 +61,10 @@ class Menu(BaseModel):
 class SalesLevel(BaseModel):
     """Sales level configuration for chatbot selling aggressiveness."""
 
-    organization = models.OneToOneField(
-        Organization, on_delete=models.CASCADE, related_name="sales_level"
+    name = models.CharField(
+        max_length=255,
+        unique=True,
+        help_text="Name of the sales level configuration.",
     )
     level = models.PositiveSmallIntegerField(
         default=1,
@@ -91,7 +93,7 @@ class SalesLevel(BaseModel):
         verbose_name_plural = "Sales Level Configurations"
 
     def __str__(self):
-        return f"{self.organization.name} - Level {self.level}"
+        return f"Level {self.level} - Name: {self.name}"
 
     def clean(self):
         from django.core.exceptions import ValidationError

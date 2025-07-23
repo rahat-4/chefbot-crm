@@ -42,6 +42,7 @@ PROJECT_APPS = [
     "apps.authentication",
     "apps.organization",
     "apps.restaurant",
+    "common",
 ]
 
 
@@ -211,6 +212,6 @@ LOGGING = {
             "handlers": ["console", "file"],
             "level": "INFO",
             "propagate": False,
-        }
-    }
+        },
+    },
 }
