@@ -6,7 +6,13 @@ from common.models import BaseModel
 
 from apps.organization.models import Organization
 
-from .choices import CategoryChoices, ClassificationChoices, MenuStatus, MenuRewardType
+from .choices import (
+    CategoryChoices,
+    ClassificationChoices,
+    MenuStatus,
+    RewardType,
+    TriggerType,
+)
 from .utils import get_restaurant_media_path_prefix
 
 
@@ -71,19 +77,6 @@ class SalesLevel(BaseModel):
         validators=[MinValueValidator(1), MaxValueValidator(5)],
         help_text="Sales aggressiveness level (1-5)",
     )
-    menu_reward_type = models.CharField(
-        max_length=20,
-        choices=MenuRewardType.choices,
-        blank=True,
-        null=True,
-        help_text="Menu reward configuration for (Level 2+)",
-    )
-    menu_reward_label = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        help_text="Label used in chatbot messages.",
-    )
     personalization_enabled = models.BooleanField(
         default=False, help_text="Enable personalized recommendations for (Level 4+)."
     )
@@ -101,18 +94,78 @@ class SalesLevel(BaseModel):
         if self.level == 2:
             if not self.menu_reward_type:
                 raise ValidationError("Menu reward type is required for level 2.")
+            if not self.menu_reward_label:
+                raise ValidationError("Menu reward label is required for level 2.")
 
-    @property
-    def is_upselling_active(self):
-        """Check if upselling is enabled (Level 3+)."""
-        return self.level >= 3
 
-    @property
-    def is_personalization_available(self):
-        """Check if personalization is available (Level 4+)."""
-        return self.level >= 4
+class Reward(BaseModel):
+    type = models.CharField(
+        max_length=20, choices=RewardType.choices, help_text="Type of the reward."
+    )
+    label = models.CharField(
+        max_length=255, help_text="Label for the reward (e.g., 'Free Drink')."
+    )
+    custom_reward = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Custom reward description (if applicable).",
+    )
 
-    @property
-    def is_promotion_module_available(self):
-        """Check if promotion module is available (Level 5)."""
-        return self.level == 5
+    def __str__(self):
+        return f"UID: {self.uid} | Type: {self.type}"
+
+
+class PromotionTrigger(BaseModel):
+    type = models.CharField(
+        max_length=20, choices=TriggerType.choices, help_text="Type of the trigger."
+    )
+    count = models.DateTimeField()
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Description of the trigger (e.g., 'Birthday Promotion').",
+    )
+
+    def __str__(self):
+        return f"UID: {self.uid} | Type: {self.type}"
+
+
+class Promotion(BaseModel):
+    title = models.CharField(
+        max_length=255, unique=True, help_text="Title of the promotion."
+    )
+    message = models.TextField(
+        help_text="Message displayed in the chatbot for this promotion."
+    )
+    valid_from = models.DateField(
+        help_text="Start date of the promotion.",
+    )
+    valid_to = models.DateField(
+        help_text="End date of the promotion.",
+    )
+    is_enabled = models.BooleanField(
+        default=True, help_text="Is the promotion currently active?"
+    )
+
+    # FK
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="promotions"
+    )
+    reward = models.ForeignKey(
+        Reward,
+        on_delete=models.CASCADE,
+        related_name="promotions",
+        blank=True,
+        null=True,
+    )
+    trigger = models.ForeignKey(
+        PromotionTrigger, on_delete=models.CASCADE, related_name="promotions"
+    )
+
+    class Meta:
+        verbose_name = "Promotion"
+        verbose_name_plural = "Promotions"
+
+    def __str__(self):
+        return f"UID: {self.uid} | Title: {self.title} | Active: {self.is_enabled}"

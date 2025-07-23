@@ -13,7 +13,7 @@ from apps.organization.models import (
     OrganizationServices,
 )
 from apps.restaurant.choices import CategoryChoices, ClassificationChoices
-from apps.restaurant.models import Menu
+from apps.restaurant.models import Menu, Reward, Promotion, PromotionTrigger
 
 
 class ServicesSerializer(serializers.ModelSerializer):
@@ -156,3 +156,55 @@ class RestaurantMenuAllergensSerializer(serializers.ModelSerializer):
     class Meta:
         model = Menu
         fields = ["allergens"]
+
+
+class RewardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reward
+        fields = [
+            "uid",
+            "type",
+            "label",
+            "custom_reward",
+        ]
+
+
+class PromotionTriggerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PromotionTrigger
+        fields = ["uid", "type", "count", "description"]
+
+
+class RestaurantPromotionSerializer(serializers.ModelSerializer):
+    reward = RewardSerializer()
+    trigger = PromotionTriggerSerializer()
+
+    class Meta:
+        model = Promotion
+        fields = [
+            "uid",
+            "title",
+            "message",
+            "reward",
+            "trigger",
+            "valid_from",
+            "valid_to",
+            "is_enabled",
+        ]
+
+    def create(self, validated_data):
+        with transaction.atomic():
+            reward_data = validated_data.pop("reward", None)
+            trigger_data = validated_data.pop("trigger", None)
+
+            reward = Reward.objects.create(**reward_data) if reward_data else None
+            trigger = (
+                PromotionTrigger.objects.create(**trigger_data)
+                if trigger_data
+                else None
+            )
+
+            promotion = Promotion.objects.create(
+                **validated_data, reward=reward, trigger=trigger
+            )
+            return promotion

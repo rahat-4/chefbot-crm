@@ -23,8 +23,15 @@ class MenuStatus(models.TextChoices):
     DELETED = "DELETED", "Deleted"
 
 
-class MenuRewardType(models.TextChoices):
+class RewardType(models.TextChoices):
     DRINK = "DRINK", "Drink"
     DESSERT = "DESSERT", "Dessert"
     DISCOUNT = "DISCOUNT", "Discount"
     CUSTOM = "CUSTOM", "Custom"
+
+
+class TriggerType(models.TextChoices):
+    BIRTHDAY = "BIRTHDAY", "Birthday"
+    MENU_SELECTED = "MENU_SELECTED", "Menu Selected"
+    INACTIVITY = "INACTIVITY", "Inactivity"
+    RESERVATION = "RESERVATION", "Reservation"
