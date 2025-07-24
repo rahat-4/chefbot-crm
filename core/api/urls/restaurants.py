@@ -7,8 +7,6 @@ from ..views.restaurants import (
     RestaurantMenuListView,
     RestaurantListView,
     RestaurantDetailView,
-    ServicesListView,
-    ServiceDetailView,
 )
 
 urlpatterns = [
@@ -38,10 +36,4 @@ urlpatterns = [
         name="restaurant.detail",
     ),
     path("", RestaurantListView.as_view(), name="restaurant.list"),
-    path(
-        "/services/<uuid:service_uid>",
-        ServiceDetailView.as_view(),
-        name="restaurant.service-detail",
-    ),
-    path("/services", ServicesListView.as_view(), name="restaurant.services-list"),
 ]

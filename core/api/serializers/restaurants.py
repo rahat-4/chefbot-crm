@@ -9,18 +9,9 @@ from apps.organization.models import (
     Organization,
     OrganizationUser,
     OpeningHours,
-    Services,
-    OrganizationServices,
 )
 from apps.restaurant.choices import CategoryChoices, ClassificationChoices
 from apps.restaurant.models import Menu, Reward, Promotion, PromotionTrigger
-
-
-class ServicesSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Services
-        fields = ["uid", "name", "description"]
 
 
 class OpeningHoursSerializer(serializers.ModelSerializer):
@@ -31,10 +22,6 @@ class OpeningHoursSerializer(serializers.ModelSerializer):
 
 
 class RestaurantSerializer(serializers.ModelSerializer):
-    service_list = serializers.SlugRelatedField(
-        queryset=Services.objects.all(), many=True, slug_field="uid", write_only=True
-    )
-    services = serializers.SerializerMethodField()
     opening_hours = OpeningHoursSerializer(many=True)
 
     class Meta:
@@ -44,6 +31,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
             "logo",
             "name",
             "whatsapp_number",
+            "whatsapp_enabled",
             "email",
             "description",
             "website",
@@ -51,18 +39,22 @@ class RestaurantSerializer(serializers.ModelSerializer):
             "city",
             "street",
             "zip_code",
-            "service_list",
-            "services",
             "opening_hours",
         ]
 
-    def get_services(self, obj):
-        services = Services.objects.filter(organization_services__organization=obj)
-        return ServicesSerializer(services, many=True).data
+    def validate(self, attrs):
+        errors = {}
+
+        if attrs.get("whatsapp_enabled") and not attrs.get("whatsapp_number"):
+            errors["whatsapp_number"] = ["This field is required."]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
 
     def create(self, validated_data):
         with transaction.atomic():
-            service_list = validated_data.pop("service_list", [])
             opening_hours = validated_data.pop("opening_hours", [])
             organization = Organization.objects.create(
                 organization_type=OrganizationType.RESTAURANT, **validated_data
@@ -73,32 +65,18 @@ class RestaurantSerializer(serializers.ModelSerializer):
                 user=self.context["request"].user,
             )
 
-            for service in service_list:
-                OrganizationServices.objects.create(
-                    organization=organization, service=service
-                )
-
             for opening_hour in opening_hours:
                 OpeningHours.objects.create(organization=organization, **opening_hour)
             return organization
 
     def update(self, instance, validated_data):
         with transaction.atomic():
-            service_list = validated_data.pop("service_list", [])
             opening_hours = validated_data.pop("opening_hours", [])
 
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
 
             instance.save()
-
-            # Services
-            if service_list is not None:
-                OrganizationServices.objects.filter(organization=instance).delete()
-                for service in service_list:
-                    OrganizationServices.objects.create(
-                        organization=instance, service=service
-                    )
 
             # Opening Hours
             if opening_hours is not None:

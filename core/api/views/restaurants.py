@@ -4,7 +4,7 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
 )
 
-from apps.organization.models import Organization, Services
+from apps.organization.models import Organization
 from apps.organization.choices import OrganizationType
 from apps.restaurant.choices import CategoryChoices, ClassificationChoices, MenuStatus
 from apps.restaurant.models import Menu, Reward, Promotion, PromotionTrigger
@@ -13,34 +13,10 @@ from common.permissions import IsAdmin, IsOwner
 
 from ..serializers.restaurants import (
     RestaurantSerializer,
-    ServicesSerializer,
     RestaurantMenuSerializer,
     RestaurantMenuAllergensSerializer,
     RestaurantPromotionSerializer,
 )
-
-
-class ServicesListView(ListCreateAPIView):
-    queryset = Services.objects.all()
-    serializer_class = ServicesSerializer
-
-    def get_permissions(self):
-        if self.request.method == "POST":
-            self.permission_classes = [IsAdmin]
-        else:
-            self.permission_classes = [IsAdmin | IsOwner]
-        return super().get_permissions()
-
-
-class ServiceDetailView(RetrieveUpdateDestroyAPIView):
-    queryset = Services.objects.all()
-    serializer_class = ServicesSerializer
-    permission_classes = [IsAdmin]
-
-    def get_object(self):
-        service_uid = self.kwargs.get("service_uid")
-
-        return self.queryset.get(uid=service_uid)
 
 
 class RestaurantListView(ListCreateAPIView):
