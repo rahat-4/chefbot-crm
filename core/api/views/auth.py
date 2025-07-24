@@ -73,7 +73,7 @@ class LoginView(TokenObtainPairView):
             access_token = response.data.get("access")
             refresh_token = response.data.get("refresh")
 
-            access_max_age = 60 * 15  # 15 minutes
+            access_max_age = 60 * 15 * 60  # 15 hours
             refresh_max_age = 60 * 60 * 24  # 1 days
 
             # Cookie settings based on environment
