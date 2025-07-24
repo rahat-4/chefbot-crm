@@ -185,9 +185,7 @@ DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL")
 
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-]
+CORS_ALLOWED_ORIGINS = ["http://localhost:3000", "http://194.164.77.123:8000"]
 
 
 # Logging configuration
@@ -215,3 +213,13 @@ LOGGING = {
         },
     },
 }
+
+
+# Cookie settings for HTTP production
+SESSION_COOKIE_SECURE = False  # False for HTTP
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_HTTPONLY = True
+
+CSRF_COOKIE_SECURE = False  # False for HTTP
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_HTTPONLY = True

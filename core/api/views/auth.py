@@ -77,15 +77,9 @@ class LoginView(TokenObtainPairView):
             refresh_max_age = 60 * 60 * 24  # 1 days
 
             # Cookie settings based on environment
-            is_dev = is_development(request)
+            # is_dev = is_development(request)
 
-            cookie_settings = {
-                "httponly": True,
-                "samesite": (
-                    "Lax" if is_dev else "None"
-                ),  # Lax for dev, None for production
-                "secure": not is_dev,
-            }
+            cookie_settings = {"httponly": True, "samesite": "Lax", "secure": False}
 
             response.set_cookie(
                 key="access_token",
