@@ -1,16 +1,20 @@
 from django.urls import path
 
 from ..views.restaurants import (
+    RestaurantPromotionListView,
     RestaurantMenuAllergensView,
     RestaurantMenuDetailView,
     RestaurantMenuListView,
     RestaurantListView,
     RestaurantDetailView,
-    ServicesListView,
-    ServiceDetailView,
 )
 
 urlpatterns = [
+    path(
+        "/<uuid:restaurant_uid>/promotions",
+        RestaurantPromotionListView.as_view(),
+        name="restaurant.promotions-list",
+    ),
     path(
         "/<uuid:restaurant_uid>/menu/<uuid:menu_uid>/allergens",
         RestaurantMenuAllergensView.as_view(),
@@ -32,10 +36,4 @@ urlpatterns = [
         name="restaurant.detail",
     ),
     path("", RestaurantListView.as_view(), name="restaurant.list"),
-    path(
-        "/services/<uuid:service_uid>",
-        ServiceDetailView.as_view(),
-        name="restaurant.service-detail",
-    ),
-    path("/services", ServicesListView.as_view(), name="restaurant.services-list"),
 ]

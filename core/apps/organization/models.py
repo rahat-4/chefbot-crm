@@ -23,8 +23,9 @@ class Organization(BaseModel):
         related_name="children",
     )
     whatsapp_number = models.CharField(
-        max_length=255, blank=True, null=True
+        unique=True, db_index=True, max_length=255, blank=True, null=True
     )  # Needs to be modify
+    whatsapp_enabled = models.BooleanField(default=False)  # Will remove in future
     name = models.CharField(max_length=255)
     email = models.EmailField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
@@ -66,30 +67,7 @@ class OrganizationUser(BaseModel):
         unique_together = ("organization", "user")
 
     def __str__(self):
-        return f"{self.organization.name} - {self.user.name}"
-
-
-class Services(BaseModel):
-    name = models.CharField(max_length=255, unique=True)
-    description = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return self.name
-
-
-class OrganizationServices(BaseModel):
-    organization = models.ForeignKey(
-        Organization, on_delete=models.CASCADE, related_name="get_services"
-    )
-    service = models.ForeignKey(
-        Services, on_delete=models.CASCADE, related_name="organization_services"
-    )
-
-    class Meta:
-        unique_together = ("organization", "service")
-
-    def __str__(self):
-        return f"{self.organization.name} - {self.service.name}"
+        return f"{self.organization.name} - {self.user.email}"
 
 
 class OpeningHours(BaseModel):
