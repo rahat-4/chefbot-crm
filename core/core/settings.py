@@ -42,6 +42,7 @@ PROJECT_APPS = [
     "apps.authentication",
     "apps.organization",
     "apps.restaurant",
+    "apps.openAI",
     "common",
 ]
 

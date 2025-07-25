@@ -1,9 +1,11 @@
+from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 from common.models import BaseModel
 
+from apps.authentication.models import Customer
 from apps.organization.models import Organization
 
 from .choices import (
@@ -14,6 +16,9 @@ from .choices import (
     TriggerType,
 )
 from .utils import get_restaurant_media_path_prefix
+
+
+User = get_user_model()
 
 
 class Menu(BaseModel):
@@ -169,3 +174,17 @@ class Promotion(BaseModel):
 
     def __str__(self):
         return f"UID: {self.uid} | Title: {self.title} | Active: {self.is_enabled}"
+
+
+class Reservation(BaseModel):
+    customer = models.ForeignKey(
+        Customer, on_delete=models.CASCADE, related_name="reservations"
+    )
+    date = models.DateField()
+    time = models.TimeField()
+    guests = models.PositiveSmallIntegerField()
+    menu_selected = models.BooleanField(default=False)
+    notes = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"UID: {self.uid} | Date: {self.date} | Time: {self.time}"

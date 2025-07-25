@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 from phonenumber_field.modelfields import PhoneNumberField
+from django.contrib.postgres.fields import ArrayField
 
 from common.models import BaseModel
 
@@ -93,3 +94,19 @@ class RegistrationSession(BaseModel):
 
     def __str__(self):
         return f"UID: {self.uid} | User Email: {self.email}"
+
+
+class Customer(BaseModel):
+    avatar = models.ImageField(
+        "Avatar",
+        upload_to=get_user_media_path_prefix,
+        blank=True,
+        null=True,
+    )
+    name = models.CharField(max_length=255, blank=True, null=True)
+    phone = PhoneNumberField(unique=True)
+    date_of_birth = models.DateField(blank=True, null=True)
+    last_visit = models.DateTimeField(blank=True, null=True)
+    preferences = ArrayField(models.CharField(max_length=255), blank=True, null=True)
+    allergens = ArrayField(models.CharField(max_length=255), blank=True, null=True)
+    special_notes = models.TextField(blank=True, null=True)

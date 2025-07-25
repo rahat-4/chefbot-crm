@@ -2,7 +2,7 @@ from django.db import transaction
 
 from rest_framework import serializers
 
-from common.openai_api import generate_nutrition_info
+from common.openAI.generate_nutritions import generate_nutrition_info
 
 from apps.organization.choices import OrganizationType
 from apps.organization.models import (
