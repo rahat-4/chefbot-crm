@@ -9,6 +9,7 @@ from apps.organization.models import (
     Organization,
     OrganizationUser,
     OpeningHours,
+    WhatsappBot,
 )
 from apps.restaurant.choices import CategoryChoices, ClassificationChoices
 from apps.restaurant.models import (
@@ -153,6 +154,20 @@ class RestaurantMenuAllergensSerializer(serializers.ModelSerializer):
     class Meta:
         model = Menu
         fields = ["allergens"]
+
+
+class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WhatsappBot
+        fields = [
+            "chatbot_name",
+            "sales_level",
+            "openai_key",
+            "assistant_id",
+            "twilio_sid",
+            "twilio_auth_token",
+            "whatsapp_sender",
+        ]
 
 
 class RewardSerializer(serializers.ModelSerializer):

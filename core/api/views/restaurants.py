@@ -4,7 +4,7 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
 )
 
-from apps.organization.models import Organization
+from apps.organization.models import Organization, WhatsappBot
 from apps.organization.choices import OrganizationType
 from apps.restaurant.choices import CategoryChoices, ClassificationChoices, MenuStatus
 from apps.restaurant.models import (
@@ -22,6 +22,7 @@ from ..serializers.restaurants import (
     RestaurantTableSerializer,
     RestaurantMenuSerializer,
     RestaurantMenuAllergensSerializer,
+    RestaurantWhatsAppBotSerializer,
     RestaurantPromotionSerializer,
 )
 
@@ -63,7 +64,8 @@ class RestaurantTableListView(ListCreateAPIView):
     permission_classes = [IsOwner]
 
     def perform_create(self, serializer):
-        organization = self.request.user.get_organization()
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        organization = Organization.objects.get(uid=restaurant_uid)
 
         serializer.save(organization=organization)
         return super().perform_create(serializer)
@@ -105,6 +107,19 @@ class RestaurantMenuDetailView(RetrieveUpdateDestroyAPIView):
         instance.save()
 
         return instance
+
+
+class RestaurantWhatsAppBotListView(ListCreateAPIView):
+    queryset = WhatsappBot.objects.all()
+    serializer_class = RestaurantWhatsAppBotSerializer
+    permission_classes = [IsOwner]
+
+    def perform_create(self, serializer):
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        organization = Organization.objects.get(uid=restaurant_uid)
+
+        serializer.save(organization=organization)
+        return super().perform_create(serializer)
 
 
 class RestaurantMenuAllergensView(RetrieveUpdateAPIView):
