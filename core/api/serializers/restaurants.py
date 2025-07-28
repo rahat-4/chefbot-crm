@@ -11,7 +11,13 @@ from apps.organization.models import (
     OpeningHours,
 )
 from apps.restaurant.choices import CategoryChoices, ClassificationChoices
-from apps.restaurant.models import Menu, Reward, Promotion, PromotionTrigger
+from apps.restaurant.models import (
+    Menu,
+    Reward,
+    Promotion,
+    PromotionTrigger,
+    RestaurantTable,
+)
 
 
 class OpeningHoursSerializer(serializers.ModelSerializer):
@@ -84,6 +90,19 @@ class RestaurantSerializer(serializers.ModelSerializer):
                 for opening_hour in opening_hours:
                     OpeningHours.objects.create(organization=instance, **opening_hour)
             return instance
+
+
+class RestaurantTableSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RestaurantTable
+        fields = [
+            "uid",
+            "name",
+            "capacity",
+            "category",
+            "position",
+            "status",
+        ]
 
 
 class RestaurantMenuSerializer(serializers.ModelSerializer):

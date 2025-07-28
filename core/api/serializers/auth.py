@@ -10,6 +10,12 @@ from apps.authentication.choices import UserType
 User = get_user_model()
 
 
+class MeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["uid", "avatar", "first_name", "last_name", "email"]
+
+
 class UserRegistrationSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = RegistrationSession
@@ -68,6 +74,7 @@ class UserPasswordSetSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         user = User.objects.create_user(
+            avatar=self.session.avatar,
             email=self.session.email,
             password=validated_data["password"],
             first_name=self.session.first_name,

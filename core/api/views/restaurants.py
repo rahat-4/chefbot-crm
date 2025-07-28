@@ -7,12 +7,19 @@ from rest_framework.generics import (
 from apps.organization.models import Organization
 from apps.organization.choices import OrganizationType
 from apps.restaurant.choices import CategoryChoices, ClassificationChoices, MenuStatus
-from apps.restaurant.models import Menu, Reward, Promotion, PromotionTrigger
+from apps.restaurant.models import (
+    RestaurantTable,
+    Menu,
+    Reward,
+    Promotion,
+    PromotionTrigger,
+)
 
 from common.permissions import IsAdmin, IsOwner
 
 from ..serializers.restaurants import (
     RestaurantSerializer,
+    RestaurantTableSerializer,
     RestaurantMenuSerializer,
     RestaurantMenuAllergensSerializer,
     RestaurantPromotionSerializer,
@@ -48,6 +55,22 @@ class RestaurantDetailView(RetrieveUpdateAPIView):
         )
 
         return restaurant
+
+
+class RestaurantTableListView(ListCreateAPIView):
+    queryset = RestaurantTable.objects.all()
+    serializer_class = RestaurantTableSerializer
+    permission_classes = [IsOwner]
+
+    def perform_create(self, serializer):
+        organization = self.request.user.get_organization()
+
+        serializer.save(organization=organization)
+        return super().perform_create(serializer)
+
+    def get_queryset(self):
+        organization_uid = self.kwargs.get("restaurant_uid")
+        return self.queryset.filter(organization__uid=organization_uid)
 
 
 class RestaurantMenuListView(ListCreateAPIView):

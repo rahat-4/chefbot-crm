@@ -35,3 +35,30 @@ class TriggerType(models.TextChoices):
     MENU_SELECTED = "MENU_SELECTED", "Menu Selected"
     INACTIVITY = "INACTIVITY", "Inactivity"
     RESERVATION = "RESERVATION", "Reservation"
+
+
+class ReservationCancelledBy(models.TextChoices):
+    SYSTEM = "SYSTEM", "System"
+    CUSTOMER = "CUSTOMER", "Customer"
+
+
+class ReservationStatus(models.TextChoices):
+    PLACED = "PLACED", "Placed"
+    INPROGRESS = "INPROGRESS", "In-progress"
+    COMPLETED = "COMPLETED", "Completed"
+    CANCELLED = "CANCELLED", "Cancelled"
+    ABSENT = "ABSENT", "Absent"
+
+
+class TableCategory(models.TextChoices):
+    FAMILY = "FAMILY", "Family"
+    COUPLE = "COUPLE", "Couple"
+    SINGLE = "SINGLE", "Single"
+    GROUP = "GROUP", "Group"
+    PRIVATE = "PRIVATE", "Private"
+
+
+class TableStatus(models.TextChoices):
+    AVAILABLE = "AVAILABLE", "Available"
+    UNAVAILABLE = "UNAVAILABLE", "Unavailable"
+    RESERVED = "RESERVED", "Reserved"

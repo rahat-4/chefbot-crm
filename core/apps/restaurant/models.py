@@ -2,6 +2,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.core.exceptions import ValidationError
+
+from phonenumber_field.modelfields import PhoneNumberField
 
 from common.models import BaseModel
 
@@ -14,6 +17,10 @@ from .choices import (
     MenuStatus,
     RewardType,
     TriggerType,
+    ReservationStatus,
+    ReservationCancelledBy,
+    TableCategory,
+    TableStatus,
 )
 from .utils import get_restaurant_media_path_prefix
 
@@ -94,7 +101,6 @@ class SalesLevel(BaseModel):
         return f"Level {self.level} - Name: {self.name}"
 
     def clean(self):
-        from django.core.exceptions import ValidationError
 
         if self.level == 2:
             if not self.menu_reward_type:
@@ -176,15 +182,77 @@ class Promotion(BaseModel):
         return f"UID: {self.uid} | Title: {self.title} | Active: {self.is_enabled}"
 
 
+class RestaurantTable(BaseModel):
+    name = models.CharField(max_length=255, unique=True)
+    capacity = models.PositiveSmallIntegerField()
+    category = models.CharField(
+        max_length=20, choices=TableCategory.choices, default=TableCategory.SINGLE
+    )
+    position = models.TextField(blank=True, null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=TableStatus.choices,
+        default=TableStatus.AVAILABLE,
+    )
+
+    # FK
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="tables"
+    )
+
+    class Meta:
+        verbose_name = "Table"
+        verbose_name_plural = "Tables"
+
+    def __str__(self):
+        return f"UID: {self.uid} | Name: {self.name}"
+
+
 class Reservation(BaseModel):
     customer = models.ForeignKey(
         Customer, on_delete=models.CASCADE, related_name="reservations"
     )
-    date = models.DateField()
-    time = models.TimeField()
+    reservation_phone = PhoneNumberField(blank=True, null=True)
+    reservation_date = models.DateField()
+    reservation_time = models.TimeField()
+    start_time = models.DateTimeField(blank=True, null=True)
+    end_time = models.DateTimeField(blank=True, null=True)
     guests = models.PositiveSmallIntegerField()
     menu_selected = models.BooleanField(default=False)
     notes = models.TextField(blank=True, null=True)
+    reservation_status = models.CharField(
+        max_length=20,
+        choices=ReservationStatus.choices,
+        default=ReservationStatus.PLACED,
+    )
+    cancelled_by = models.CharField(
+        max_length=20,
+        choices=ReservationCancelledBy.choices,
+        default=ReservationCancelledBy.SYSTEM,
+    )
+    cancellation_reason = models.TextField(blank=True, null=True)
+    booking_reminder_sent = models.BooleanField(default=False)
+
+    # FK
+    menus = models.ManyToManyField(Menu, blank=True, related_name="reservation_menus")
+    table = models.ForeignKey(
+        RestaurantTable, on_delete=models.CASCADE, related_name="reservations_table"
+    )
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="organization_reservations"
+    )
+
+    class Meta:
+        verbose_name = "Reservation"
+        verbose_name_plural = "Reservations"
+
+    def save(self, *args, **kwargs):
+        if self.cancelled_by == ReservationCancelledBy.CUSTOMER:
+            if not self.cancellation_reason:
+                raise ValidationError(
+                    "Cancellation reason is required for customer cancellation."
+                )
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"UID: {self.uid} | Date: {self.date} | Time: {self.time}"

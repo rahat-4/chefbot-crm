@@ -10,6 +10,7 @@ import os
 import time
 from openai import OpenAI
 
+from django.conf import settings
 
 from apps.authentication.models import Customer
 from apps.openAI.models import ChatThread
@@ -21,7 +22,7 @@ from apps.restaurant.models import Reservation
 logger = logging.getLogger(__name__)
 
 
-twilio_client = TwilioClient(MY_TWILIO_ACCOUNT_SID, MY_TWILIO_AUTH_TOKEN)
+twilio_client = TwilioClient(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
 client = OpenAI(api_key=os.environ.get("OPENAI_API"))
 
 
@@ -40,15 +41,15 @@ def send_whatsapp_reply(to: str, message: str) -> Optional[dict]:
     Returns:
         Response data if successful, None if failed
     """
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{MY_TWILIO_ACCOUNT_SID}/Messages.json"
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Messages.json"
 
     data = {
-        "From": TWILIO_WHATSAPP_NUMBER,
+        "From": settings.TWILIO_WHATSAPP_NUMBER,
         "To": f"whatsapp:{to}",
         "Body": message,
     }
 
-    auth = (MY_TWILIO_ACCOUNT_SID, MY_TWILIO_AUTH_TOKEN)
+    auth = (settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
 
     try:
         response = requests.post(url, data=data, auth=auth)
@@ -77,7 +78,7 @@ def whatsapp_bot(request):
 
     # Run assistant
     run = client.beta.threads.runs.create(
-        thread_id=thread_id, assistant_id=ASSISTANT_ID
+        thread_id=thread_id, assistant_id=settings.ASSISTANT_ID
     )
 
     # Pull until completed

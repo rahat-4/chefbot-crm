@@ -5,9 +5,11 @@ from ..views.auth import (
     UserPasswordSetView,
     LoginView,
     LogoutView,
+    MeView,
 )
 
 urlpatterns = [
+    path("/me", MeView.as_view(), name="me"),
     path("/logout", LogoutView.as_view(), name="logout"),
     path("/login", LoginView.as_view(), name="login"),
     path(

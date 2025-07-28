@@ -16,6 +16,7 @@ from apps.authentication.models import RegistrationSession
 from ..serializers.auth import (
     UserRegistrationSessionSerializer,
     UserPasswordSetSerializer,
+    MeSerializer,
 )
 
 User = get_user_model()
@@ -122,3 +123,9 @@ class LogoutView(APIView):
         response.delete_cookie("refresh_token", path="/")
 
         return response
+
+
+class MeView(APIView):
+    def get(self, request, *args, **kwargs):
+        serializer = MeSerializer(request.user, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
