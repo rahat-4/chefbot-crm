@@ -12,7 +12,7 @@ from openai import OpenAI
 
 from django.conf import settings
 
-from apps.authentication.models import Customer
+from apps.authentication.models import Client
 from apps.openAI.models import ChatThread
 from apps.openAI.gpt_assistants import create_assistant, assistant_list
 from apps.openAI.utils import get_or_create_thread
@@ -100,7 +100,7 @@ def whatsapp_bot(request):
                     args = json.loads(call.function.arguments)
                     phone = args["phone"]
 
-                    customer = Customer.objects.filter(phone=phone).first()
+                    customer = Client.objects.filter(phone=phone).first()
                     if customer:
                         result = {"status": "existing", "name": customer.name}
                     else:

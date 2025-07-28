@@ -8,7 +8,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 
 from common.models import BaseModel
 
-from apps.authentication.models import Customer
+from apps.authentication.models import Client
 from apps.organization.models import Organization
 
 from .choices import (
@@ -209,16 +209,14 @@ class RestaurantTable(BaseModel):
 
 
 class Reservation(BaseModel):
-    customer = models.ForeignKey(
-        Customer, on_delete=models.CASCADE, related_name="reservations"
+    client = models.ForeignKey(
+        Client, on_delete=models.CASCADE, related_name="reservations"
     )
     reservation_phone = PhoneNumberField(blank=True, null=True)
     reservation_date = models.DateField()
     reservation_time = models.TimeField()
-    start_time = models.DateTimeField(blank=True, null=True)
     end_time = models.DateTimeField(blank=True, null=True)
     guests = models.PositiveSmallIntegerField()
-    menu_selected = models.BooleanField(default=False)
     notes = models.TextField(blank=True, null=True)
     reservation_status = models.CharField(
         max_length=20,
@@ -232,6 +230,7 @@ class Reservation(BaseModel):
     )
     cancellation_reason = models.TextField(blank=True, null=True)
     booking_reminder_sent = models.BooleanField(default=False)
+    booking_reminder_sent_at = models.TimeField(blank=True, null=True)
 
     # FK
     menus = models.ManyToManyField(Menu, blank=True, related_name="reservation_menus")
@@ -247,10 +246,10 @@ class Reservation(BaseModel):
         verbose_name_plural = "Reservations"
 
     def save(self, *args, **kwargs):
-        if self.cancelled_by == ReservationCancelledBy.CUSTOMER:
+        if self.cancelled_by == ReservationStatus.CANCELLED:
             if not self.cancellation_reason:
                 raise ValidationError(
-                    "Cancellation reason is required for customer cancellation."
+                    "Cancellation reason is required for cancelled reservations."
                 )
         super().save(*args, **kwargs)
 

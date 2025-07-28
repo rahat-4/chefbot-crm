@@ -3,7 +3,7 @@ from django.utils import timezone
 import os
 from openai import OpenAI
 
-from apps.authentication.models import Customer
+from apps.authentication.models import Client
 
 from .models import ChatThread
 
@@ -11,10 +11,10 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API"))
 
 
 def get_or_create_thread(phone_number: str) -> str:
-    customer = Customer.objects.filter(phone=phone_number).first()
+    customer = Client.objects.filter(phone=phone_number).first()
 
     if not customer:
-        customer = Customer.objects.create(phone=phone_number)
+        customer = Client.objects.create(phone=phone_number)
 
     try:
         thread_obj = ChatThread.objects.get(customer=customer)
