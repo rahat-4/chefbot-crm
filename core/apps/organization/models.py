@@ -81,3 +81,21 @@ class OpeningHours(BaseModel):
 
     def __str__(self):
         return f"{self.day}: {self.open_time} - {self.close_time}"
+
+
+class WhatsappBot(BaseModel):
+    chatbot_name = models.CharField(max_length=255)
+    sales_level = models.PositiveSmallIntegerField(default=1)
+    openai_key = models.CharField(max_length=255)
+    assistant_id = models.CharField(max_length=255)
+    twilio_sid = models.CharField(max_length=255)
+    twilio_auth_token = models.CharField(max_length=255)
+    whatsapp_sender = models.CharField(max_length=100)
+
+    # OneToOneField
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="whatsapp_bots"
+    )
+
+    def __str__(self):
+        return self.chatbot_name
