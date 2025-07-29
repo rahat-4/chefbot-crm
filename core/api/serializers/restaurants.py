@@ -1,8 +1,12 @@
 from django.db import transaction
 
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
+from decouple import config
 
 from common.openAI.generate_nutritions import generate_nutrition_info
+from common.crypto import encrypt_data, decrypt_data
 
 from apps.organization.choices import OrganizationType
 from apps.organization.models import (
@@ -160,6 +164,7 @@ class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
     class Meta:
         model = WhatsappBot
         fields = [
+            "uid",
             "chatbot_name",
             "sales_level",
             "openai_key",
@@ -167,6 +172,46 @@ class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
             "twilio_sid",
             "twilio_auth_token",
             "whatsapp_sender",
+        ]
+
+    def validate(self, attrs):
+        organization_uid = self.context["view"].kwargs.get("restaurant_uid")
+
+        whatsappbot = WhatsappBot.objects.filter(
+            organization__uid=organization_uid
+        ).first()
+
+        if whatsappbot:
+            raise ValidationError(
+                {"chatbot_name": "A WhatsappBot already exists for this organization."}
+            )
+
+        return attrs
+
+    def create(self, validated_data):
+        crypto_password = config("CRYPTO_PASSWORD")
+
+        validated_data["openai_key"] = encrypt_data(
+            validated_data["openai_key"], crypto_password
+        )
+        validated_data["assistant_id"] = encrypt_data(
+            validated_data["assistant_id"], crypto_password
+        )
+        validated_data["twilio_sid"] = encrypt_data(
+            validated_data["twilio_sid"], crypto_password
+        )
+        validated_data["twilio_auth_token"] = encrypt_data(
+            validated_data["twilio_auth_token"], crypto_password
+        )
+
+        return super().create(validated_data)
+
+
+class RestaurantWhatsAppBotUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WhatsappBot
+        fields = [
+            "sales_level",
         ]
 
 
