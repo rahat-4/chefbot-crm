@@ -4,7 +4,7 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
 )
 
-from apps.organization.models import Organization
+from apps.organization.models import Organization, OrganizationUser
 from apps.organization.choices import OrganizationType
 from apps.restaurant.choices import CategoryChoices, ClassificationChoices, MenuStatus
 from apps.restaurant.models import (
@@ -30,6 +30,14 @@ class RestaurantListView(ListCreateAPIView):
     queryset = Organization.objects.all()
     serializer_class = RestaurantSerializer
     permission_classes = [IsOwner]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        return self.queryset.filter(
+            organization_users__user=user,
+            organization_type=OrganizationType.RESTAURANT,
+        )
 
     # def get_permissions(self):
     #     if self.request.method == "POST":
