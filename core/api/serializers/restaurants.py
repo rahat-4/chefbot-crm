@@ -85,7 +85,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
             instance.save()
 
             # Opening Hours
-            if opening_hours is not None:
+            if opening_hours != []:
                 OpeningHours.objects.filter(organization=instance).delete()
                 for opening_hour in opening_hours:
                     OpeningHours.objects.create(organization=instance, **opening_hour)
