@@ -3,7 +3,7 @@ from django.utils import timezone
 import os
 from openai import OpenAI
 
-from apps.authentication.models import Client, ClientMessage
+from apps.restaurant.models import Client, ClientMessage
 
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API"))

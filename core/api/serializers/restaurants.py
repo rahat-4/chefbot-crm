@@ -183,7 +183,7 @@ class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
 
         if whatsappbot:
             raise ValidationError(
-                {"chatbot_name": "A WhatsappBot already exists for this organization."}
+                {"chatbot_name": "A WhatsappBot already exists for this restaurant."}
             )
 
         return attrs
@@ -202,6 +202,9 @@ class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
         )
         validated_data["twilio_auth_token"] = encrypt_data(
             validated_data["twilio_auth_token"], crypto_password
+        )
+        validated_data["whatsapp_sender"] = (
+            f"whatsapp:+{validated_data['whatsapp_sender']}"
         )
 
         return super().create(validated_data)

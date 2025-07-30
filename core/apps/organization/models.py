@@ -86,7 +86,7 @@ class OpeningHours(BaseModel):
 class WhatsappBot(BaseModel):
     chatbot_name = models.CharField(max_length=255)
     sales_level = models.PositiveSmallIntegerField(default=1)
-    openai_key = models.CharField(unique=True, max_length=255)
+    openai_key = models.CharField(max_length=255)
     assistant_id = models.CharField(unique=True, max_length=255)
     twilio_sid = models.CharField(unique=True, max_length=255)
     twilio_auth_token = models.CharField(unique=True, max_length=255)

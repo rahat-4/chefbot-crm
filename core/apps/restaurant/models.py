@@ -8,7 +8,6 @@ from phonenumber_field.modelfields import PhoneNumberField
 
 from common.models import BaseModel
 
-from apps.authentication.models import Client
 from apps.organization.models import Organization
 
 from .choices import (
@@ -21,8 +20,10 @@ from .choices import (
     ReservationCancelledBy,
     TableCategory,
     TableStatus,
+    ClientMessageRole,
+    ClientSource,
 )
-from .utils import get_restaurant_media_path_prefix
+from .utils import get_restaurant_media_path_prefix, get_client_media_path_prefix
 
 
 User = get_user_model()
@@ -206,6 +207,53 @@ class RestaurantTable(BaseModel):
 
     def __str__(self):
         return f"UID: {self.uid} | Name: {self.name}"
+
+
+class Client(BaseModel):
+    avatar = models.ImageField(
+        "Avatar",
+        upload_to=get_client_media_path_prefix,
+        blank=True,
+        null=True,
+    )
+    name = models.CharField(max_length=255, blank=True, null=True)
+    phone = PhoneNumberField(unique=True, blank=True, null=True)
+    whatsapp_number = models.CharField(max_length=100)
+    email = models.EmailField(max_length=255, unique=True, blank=True, null=True)
+    source = models.CharField(
+        max_length=20, choices=ClientSource.choices, default=ClientSource.WHATSAPP
+    )
+    date_of_birth = models.DateField(blank=True, null=True)
+    last_visit = models.DateTimeField(blank=True, null=True)
+    preferences = ArrayField(models.CharField(max_length=255), blank=True, null=True)
+    allergens = ArrayField(models.CharField(max_length=255), blank=True, null=True)
+    special_notes = models.TextField(blank=True, null=True)
+    thread_id = models.CharField(max_length=255, blank=True, null=True)
+
+    organization = models.ForeignKey(
+        "organization.Organization",
+        on_delete=models.CASCADE,
+        related_name="organization_clients",
+    )
+
+    def __str__(self):
+        return f"UID: {self.uid} | Whatsapp: {self.whatsapp_number}"
+
+
+class ClientMessage(BaseModel):
+    client = models.ForeignKey(
+        Client, on_delete=models.CASCADE, related_name="client_messages"
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ClientMessageRole.choices,
+        default=ClientMessageRole.ASSISTANT,
+    )
+    message = models.TextField()
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"UID: {self.uid} | Role: {self.role}"
 
 
 class Reservation(BaseModel):

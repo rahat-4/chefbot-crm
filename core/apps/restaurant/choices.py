@@ -62,3 +62,13 @@ class TableStatus(models.TextChoices):
     AVAILABLE = "AVAILABLE", "Available"
     UNAVAILABLE = "UNAVAILABLE", "Unavailable"
     RESERVED = "RESERVED", "Reserved"
+
+
+class ClientSource(models.TextChoices):
+    WHATSAPP = "WHATSAPP", "WhatsApp"
+    MANUAL = "MANUAL", "Manual"
+
+
+class ClientMessageRole(models.TextChoices):
+    USER = "USER", "User"
+    ASSISTANT = "ASSISTANT", "Assistant"
