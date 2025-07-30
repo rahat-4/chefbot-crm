@@ -1,10 +1,13 @@
+from django.shortcuts import get_object_or_404
+
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateAPIView,
     RetrieveUpdateDestroyAPIView,
+    ValidationError,
 )
 
-from apps.organization.models import Organization, OrganizationUser
+from apps.organization.models import Organization, WhatsappBot
 from apps.organization.choices import OrganizationType
 from apps.restaurant.choices import CategoryChoices, ClassificationChoices, MenuStatus
 from apps.restaurant.models import (
@@ -22,6 +25,8 @@ from ..serializers.restaurants import (
     RestaurantTableSerializer,
     RestaurantMenuSerializer,
     RestaurantMenuAllergensSerializer,
+    RestaurantWhatsAppBotSerializer,
+    RestaurantWhatsAppBotUpdateSerializer,
     RestaurantPromotionSerializer,
 )
 
@@ -71,7 +76,8 @@ class RestaurantTableListView(ListCreateAPIView):
     permission_classes = [IsOwner]
 
     def perform_create(self, serializer):
-        organization = self.request.user.get_organization()
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        organization = Organization.objects.get(uid=restaurant_uid)
 
         serializer.save(organization=organization)
         return super().perform_create(serializer)
@@ -113,6 +119,56 @@ class RestaurantMenuDetailView(RetrieveUpdateDestroyAPIView):
         instance.save()
 
         return instance
+
+
+class RestaurantWhatsAppBotListView(ListCreateAPIView):
+    serializer_class = RestaurantWhatsAppBotSerializer
+    permission_classes = [IsOwner]
+
+    def get_organization(self):
+        """Get organization from URL parameter with caching."""
+        if not hasattr(self, "_organization"):
+            restaurant_uid = self.kwargs.get("restaurant_uid")
+            if not restaurant_uid:
+                raise ValidationError("Restaurant UID is required.")
+
+            self._organization = get_object_or_404(
+                Organization.objects.select_related("parent"), uid=restaurant_uid
+            )
+        return self._organization
+
+    def get_queryset(self):
+        """Get queryset filtered by organization or its parent."""
+        organization = self.get_organization()
+
+        # Use parent organization if it exists, otherwise use the organization itself
+        target_org = organization.parent or organization
+
+        return WhatsappBot.objects.filter(organization=target_org)
+
+    def perform_create(self, serializer):
+        """Create WhatsApp bot for the organization."""
+        organization = self.get_organization()
+        serializer.save(organization=organization)
+
+
+class RestaurantWhatsAppBotDetailView(RetrieveUpdateAPIView):
+    queryset = WhatsappBot.objects.all()
+    serializer_class = RestaurantWhatsAppBotSerializer
+    permission_classes = [IsOwner]
+
+    def get_object(self):
+        organization_uid = self.kwargs.get("restaurant_uid")
+        whatsapp_bot_uid = self.kwargs.get("whatsapp_bot_uid")
+
+        return self.queryset.get(
+            organization__uid=organization_uid, uid=whatsapp_bot_uid
+        )
+
+    def get_serializer_class(self):
+        if self.request.method in ["PUT", "PATCH"]:
+            return RestaurantWhatsAppBotUpdateSerializer
+        return RestaurantWhatsAppBotSerializer
 
 
 class RestaurantMenuAllergensView(RetrieveUpdateAPIView):
