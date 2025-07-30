@@ -13,7 +13,6 @@ from openai import OpenAI
 from django.conf import settings
 
 from apps.authentication.models import Client
-from apps.openAI.models import ChatThread
 from apps.openAI.gpt_assistants import create_assistant, assistant_list
 from apps.openAI.utils import get_or_create_thread
 from apps.openAI.tools import tools
