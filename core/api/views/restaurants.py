@@ -36,6 +36,14 @@ class RestaurantListView(ListCreateAPIView):
     serializer_class = RestaurantSerializer
     permission_classes = [IsOwner]
 
+    def get_queryset(self):
+        user = self.request.user
+
+        return self.queryset.filter(
+            organization_users__user=user,
+            organization_type=OrganizationType.RESTAURANT,
+        )
+
     # def get_permissions(self):
     #     if self.request.method == "POST":
     #         self.permission_classes = [IsOwner]
