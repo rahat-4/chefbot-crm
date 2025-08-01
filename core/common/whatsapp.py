@@ -4,7 +4,9 @@ import requests
 from django.conf import settings
 
 
-def send_whatsapp_reply(to: str, message: str) -> Optional[dict]:
+def send_whatsapp_reply(
+    to: str, message: str, twilio_sid: str, twilio_auth_token: str, twilio_number: str
+) -> Optional[dict]:
     """
     Send a whatsapp message via Twilio API
 
@@ -16,18 +18,19 @@ def send_whatsapp_reply(to: str, message: str) -> Optional[dict]:
         Response data if successful, None if failed
     """
 
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Messages.json"
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json"
 
     data = {
-        "From": settings.TWILIO_WHATSAPP_NUMBER,
-        "To": f"whatsapp:{to}",
+        "From": twilio_number,
+        "To": to,
         "Body": message,
     }
 
-    auth = (settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+    auth = (twilio_sid, twilio_auth_token)
 
     try:
         response = requests.post(url, data=data, auth=auth)
+        print("=============================>", response)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:

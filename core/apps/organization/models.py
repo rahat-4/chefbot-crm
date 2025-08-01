@@ -86,11 +86,12 @@ class OpeningHours(BaseModel):
 class WhatsappBot(BaseModel):
     chatbot_name = models.CharField(max_length=255)
     sales_level = models.PositiveSmallIntegerField(default=1)
-    openai_key = models.CharField(max_length=255)
-    assistant_id = models.CharField(unique=True, max_length=255)
-    twilio_sid = models.CharField(unique=True, max_length=255)
-    twilio_auth_token = models.CharField(unique=True, max_length=255)
-    whatsapp_sender = models.CharField(max_length=100)
+    openai_key = models.JSONField(default=dict)
+    assistant_id = models.JSONField(default=dict)
+    twilio_sid = models.JSONField(default=dict)
+    twilio_auth_token = models.JSONField(default=dict)
+    twilio_number = models.CharField(max_length=100)
+    hashed_key = models.CharField(max_length=500)
 
     # OneToOneField
     organization = models.OneToOneField(
@@ -104,7 +105,7 @@ class WhatsappBot(BaseModel):
             "assistant_id",
             "twilio_sid",
             "twilio_auth_token",
-            "whatsapp_sender",
+            "twilio_number",
         )
 
     def __str__(self):

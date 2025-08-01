@@ -17,6 +17,23 @@ def create_assistant(assistant_name, instructions, tools=None, file_ids=None):
     return assistant
 
 
+def delete_assistant(assistant_id):
+    return client.beta.assistants.delete(assistant_id)
+
+
+def update_assistant(
+    assistant_id, assistant_name, instructions, tools=None, file_ids=None
+):
+    return client.beta.assistants.update(
+        assistant_id,
+        name=assistant_name,
+        instructions=instructions,
+        tools=tools or [],
+        model="gpt-4o",
+        temperature=0.7,
+    )
+
+
 def assistant_list():
     return client.beta.assistants.list(order="desc", limit=1)
 

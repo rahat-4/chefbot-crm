@@ -302,4 +302,4 @@ class Reservation(BaseModel):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"UID: {self.uid} | Date: {self.date} | Time: {self.time}"
+        return f"UID: {self.uid} | Date: {self.reservation_date} | Time: {self.reservation_time}"

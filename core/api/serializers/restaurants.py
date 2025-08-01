@@ -6,7 +6,7 @@ from rest_framework.exceptions import ValidationError
 from decouple import config
 
 from common.openAI.generate_nutritions import generate_nutrition_info
-from common.crypto import encrypt_data, decrypt_data
+from common.crypto import encrypt_data, decrypt_data, hash_key
 
 from apps.organization.choices import OrganizationType
 from apps.organization.models import (
@@ -171,7 +171,7 @@ class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
             "assistant_id",
             "twilio_sid",
             "twilio_auth_token",
-            "whatsapp_sender",
+            "twilio_number",
         ]
 
     def validate(self, attrs):
@@ -189,8 +189,19 @@ class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        # from apps.openAI.gpt_assistants import create_assistant, update_assistant
+        # from apps.openAI.tools import tools
+        # from apps.openAI.instructions import instructions
+
+        # update_assistant(
+        #     "asst_FAOpOpfdxUpnz69qonPjzr0v",
+        #     "WhatsApp-based restaurant reservation assistant",
+        #     instructions,
+        #     tools,
+        # )
         crypto_password = config("CRYPTO_PASSWORD")
 
+        validated_data["hashed_key"] = hash_key(validated_data["twilio_sid"])
         validated_data["openai_key"] = encrypt_data(
             validated_data["openai_key"], crypto_password
         )
@@ -203,9 +214,7 @@ class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
         validated_data["twilio_auth_token"] = encrypt_data(
             validated_data["twilio_auth_token"], crypto_password
         )
-        validated_data["whatsapp_sender"] = (
-            f"whatsapp:+{validated_data['whatsapp_sender']}"
-        )
+        validated_data["twilio_number"] = f"whatsapp:{validated_data['twilio_number']}"
 
         return super().create(validated_data)
 

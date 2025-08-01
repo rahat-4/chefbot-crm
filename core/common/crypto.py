@@ -1,5 +1,6 @@
 import base64
 import os
+import hashlib
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -88,4 +89,9 @@ def decrypt_data(data: dict, password: str) -> str:
     Returns:
         str: Decrypted data.
     """
-    return APIKeyCrypto(password).decrypt(data)
+    salt = base64.b64decode(data["salt"])
+    return APIKeyCrypto(password, salt).decrypt(data)
+
+
+def hash_key(data: str) -> str:
+    return hashlib.sha256(data.encode()).hexdigest()
