@@ -224,6 +224,11 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        "apps.openAI.utils": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
 

@@ -22,6 +22,7 @@ class Organization(BaseModel):
         null=True,
         related_name="children",
     )
+    phone = PhoneNumberField(unique=True, db_index=True, blank=True, null=True)
     whatsapp_number = models.CharField(
         unique=True, db_index=True, max_length=255, blank=True, null=True
     )  # Needs to be modify
@@ -80,7 +81,7 @@ class OpeningHours(BaseModel):
     is_closed = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.day}: {self.open_time} - {self.close_time}"
+        return f"Restaurant: {self.organization.name} - {self.day}: {self.open_time} - {self.close_time}"
 
 
 class WhatsappBot(BaseModel):

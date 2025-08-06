@@ -177,28 +177,36 @@ class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         organization_uid = self.context["view"].kwargs.get("restaurant_uid")
 
-        whatsappbot = WhatsappBot.objects.filter(
-            organization__uid=organization_uid
-        ).first()
+        organization = Organization.objects.filter(uid=organization_uid).first()
+
+        if not organization:
+            raise ValidationError({"organization": "Invalid organization."})
+
+        whatsappbot = WhatsappBot.objects.filter(organization=organization).first()
 
         if whatsappbot:
             raise ValidationError(
                 {"chatbot_name": "A WhatsappBot already exists for this restaurant."}
             )
 
+        self.organization = organization
+
         return attrs
 
     def create(self, validated_data):
-        # from apps.openAI.gpt_assistants import create_assistant, update_assistant
-        # from apps.openAI.tools import tools
-        # from apps.openAI.instructions import instructions
+        from apps.openAI.gpt_assistants import create_assistant, update_assistant
+        from apps.openAI.tools import function_tools
+        from apps.openAI.instructions import restaurant_assistant_instruction
 
-        # update_assistant(
-        #     "asst_FAOpOpfdxUpnz69qonPjzr0v",
-        #     "WhatsApp-based restaurant reservation assistant",
-        #     instructions,
-        #     tools,
-        # )
+        tools = function_tools(validated_data["sales_level"])
+        instructions = restaurant_assistant_instruction(self.organization.name)
+
+        update_assistant(
+            "asst_FAOpOpfdxUpnz69qonPjzr0v",
+            "WhatsApp-based restaurant reservation assistant",
+            instructions,
+            tools,
+        )
         crypto_password = config("CRYPTO_PASSWORD")
 
         validated_data["hashed_key"] = hash_key(validated_data["twilio_sid"])

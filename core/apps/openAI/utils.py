@@ -1,132 +1,831 @@
-from typing import Dict
-
-from datetime import datetime, date, time as time_obj, timedelta
-
-
-from django.utils import timezone
-
-import os
+import json
+import logging
+import time
+from datetime import datetime, date, timedelta
 from openai import OpenAI
+from typing import Dict, Any, Optional, List
 
-from apps.restaurant.models import RestaurantTable, Client, Reservation
-from apps.restaurant.choices import TableStatus, ReservationStatus
+from django.core import serializers
+
+from apps.restaurant.choices import (
+    ReservationStatus,
+    TableStatus,
+    MenuStatus,
+    ReservationCancelledBy,
+)
+from apps.restaurant.models import Client, Reservation, RestaurantTable, Menu
+
+logger = logging.getLogger(__name__)
 
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API"))
+def cancel_active_runs(openai_client: OpenAI, thread_id: str) -> None:
+    """Cancel any active runs on the thread"""
+    try:
+        runs = openai_client.beta.threads.runs.list(thread_id=thread_id, limit=5)
+
+        for run in runs.data:
+            if run.status in ["queued", "in_progress", "requires_action"]:
+                logger.info(f"Cancelling active run: {run.id}")
+                try:
+                    openai_client.beta.threads.runs.cancel(
+                        thread_id=thread_id, run_id=run.id
+                    )
+                    time.sleep(0.5)  # Wait for cancellation to process
+                except Exception as e:
+                    logger.warning(f"Failed to cancel run {run.id}: {str(e)}")
+
+    except Exception as e:
+        logger.warning(f"Error checking for active runs: {str(e)}")
 
 
-def check_table_availability(
-    date: str, time: str, guests: int, organization: object
-) -> Dict[str, any]:
-    """
-    Check table availability for given date, time, and guest count
-    Returns available tables or suggestions for next available slots
-    """
-    # try:
-    reservation_date = datetime.strptime(date, "%Y-%m-%d").date()
-    reservation_time = datetime.strptime(time, "%H:%M").time()
+def process_assistant_run(
+    openai_client: OpenAI, customer: Client, run, organization
+) -> Optional[str]:
+    """Process the assistant run and return the response"""
+    max_iterations = 30
+    iteration = 0
 
-    # Find tables that can accommodate the guests
-    suitable_tables = RestaurantTable.objects.filter(
-        organization=organization,
-        capacity__gte=guests,
-        status=TableStatus.AVAILABLE,
-    )
+    while iteration < max_iterations:
+        iteration += 1
 
-    if not suitable_tables.exists():
-        return {
-            "available": False,
-            "message": f"No tables available for {guests} guests",
-            "suggestions": [],
-        }
+        try:
+            run_status = openai_client.beta.threads.runs.retrieve(
+                thread_id=customer.thread_id, run_id=run.id
+            )
+        except Exception as e:
+            logger.error(f"Error retrieving run status: {str(e)}")
+            return None
 
-    # Check if any suitable table is free at the requested time
-    available_tables = []
-    for table in suitable_tables:
-        # Check if table has conflicting reservations
-        conflicting_reservations = Reservation.objects.filter(
-            table=table,
-            reservation_date=reservation_date,
-            reservation_time__range=(
-                (
-                    datetime.combine(reservation_date, reservation_time)
-                    - timedelta(hours=2)
-                ).time(),
-                (
-                    datetime.combine(reservation_date, reservation_time)
-                    + timedelta(hours=2)
-                ).time(),
-            ),
-        ).exclude(reservation_status=ReservationStatus.COMPLETED)
+        logger.info(
+            f"Assistant run status: {run_status.status} (iteration {iteration})"
+        )
 
-        if not conflicting_reservations.exists():
-            available_tables.append(
+        if run_status.status == "completed":
+            logger.info("Assistant run completed")
+            return get_assistant_response(openai_client, customer.thread_id)
+
+        elif run_status.status == "requires_action":
+            logger.info("Processing required actions")
+            if not handle_required_actions(
+                openai_client, customer, run_status, organization
+            ):
+                logger.error("Failed to handle required actions")
+                return None
+
+        elif run_status.status in ["failed", "cancelled", "expired"]:
+            logger.error(f"Run failed with status: {run_status.status}")
+            return None
+
+        elif run_status.status in ["queued", "in_progress"]:
+            time.sleep(1)  # Wait before checking again
+        else:
+            logger.warning(f"Unknown run status: {run_status.status}")
+            time.sleep(1)
+
+    logger.error(f"Run exceeded maximum iterations ({max_iterations})")
+    return None
+
+
+def get_assistant_response(openai_client: OpenAI, thread_id: str) -> Optional[str]:
+    """Get the latest assistant response from the thread"""
+    try:
+        messages = openai_client.beta.threads.messages.list(
+            thread_id=thread_id, limit=10
+        )
+
+        for message in messages.data:
+            if (
+                message.role == "assistant"
+                and message.content
+                and len(message.content) > 0
+            ):
+                if message.content[0].type == "text":
+                    reply = message.content[0].text.value
+                    logger.info(f"Assistant reply: {reply}")
+                    return reply
+
+        logger.warning("No assistant text response found")
+        return None
+
+    except Exception as e:
+        logger.error(f"Error getting assistant response: {str(e)}")
+        return None
+
+
+def handle_required_actions(
+    openai_client: OpenAI, customer: Client, run_status, organization
+) -> bool:
+    """Handle required actions and submit tool outputs"""
+    if not (
+        run_status.required_action and run_status.required_action.submit_tool_outputs
+    ):
+        return False
+
+    tool_outputs = []
+
+    for call in run_status.required_action.submit_tool_outputs.tool_calls:
+        logger.info(f"Processing tool call: {call.function.name}")
+
+        try:
+            # Route function calls to appropriate handlers
+            function_handlers = {
+                "get_restaurant_information": lambda: handle_get_restaurant_information(
+                    call, organization
+                ),
+                "get_menu_items": lambda: handle_get_menu_items(call, organization),
+                "get_available_tables": lambda: handle_get_available_tables(
+                    call, organization
+                ),
+                "book_table": lambda: handle_book_table(call, organization, customer),
+                "add_menu_to_reservation": lambda: handle_add_menu_to_reservation(
+                    call, organization
+                ),
+                "cancel_reservation": lambda: handle_cancel_reservation(
+                    call, organization
+                ),
+            }
+
+            handler = function_handlers.get(call.function.name)
+            if handler:
+                result = handler()
+                logger.info(
+                    f"{call.function.name} result-------------------->: {result}"
+                )
+            else:
+                result = {"error": f"Unknown function: {call.function.name}"}
+                logger.warning(f"Unknown function called: {call.function.name}")
+
+            tool_outputs.append({"tool_call_id": call.id, "output": json.dumps(result)})
+
+            logger.info(f"Tool outputs: {tool_outputs}")
+
+        except Exception as e:
+            logger.error(f"Error processing tool call {call.function.name}: {str(e)}")
+            tool_outputs.append(
                 {
-                    "uid": table.uid,
-                    "name": table.name,
-                    "capacity": table.capacity,
-                    "category": table.category,
-                    "position": table.position,
-                    "status": table.status,
+                    "tool_call_id": call.id,
+                    "output": json.dumps({"error": f"Tool execution failed: {str(e)}"}),
                 }
             )
 
-    if available_tables:
-        return {
-            "available": True,
-            "tables": available_tables,
-            "message": f"Found {len(available_tables)} available table(s)",
+    # Submit tool outputs
+    try:
+        openai_client.beta.threads.runs.submit_tool_outputs(
+            thread_id=customer.thread_id,
+            run_id=run_status.id,
+            tool_outputs=tool_outputs,
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error submitting tool outputs: {str(e)}")
+        return False
+
+
+def handle_get_restaurant_information(call, organization) -> Dict[str, Any]:
+    """Handle get_restaurant_information tool call"""
+    try:
+        args = json.loads(call.function.arguments)
+        query = args.get("query", "all_info").lower()
+
+        # Serialize opening hours
+        opening_hours = serializers.serialize("json", organization.opening_hours.all())
+
+        # Build complete restaurant information
+        restaurant_info = {
+            "name": organization.name,
+            "phone": str(organization.phone) if organization.phone else None,
+            "email": organization.email,
+            "website": organization.website,
+            "country": organization.country,
+            "city": organization.city,
+            "street": organization.street,
+            "zip_code": organization.zip_code,
+            "opening_hours": opening_hours,
         }
 
-    # If no tables available at requested time, suggest alternatives
-    suggestions = get_alternative_time_slots(reservation_date, guests, organization)
+        logger.info(f"Opening hours: {opening_hours}")
 
-    return {
-        "available": False,
-        "message": f"No tables available at {time} on {date}",
-        "suggestions": suggestions,
-    }
+        # Filter based on query if specific information requested
+        query_mapping = {
+            "name": {"name": restaurant_info["name"]},
+            "phone_number": {"phone": restaurant_info["phone"]},
+            "email": {"email": restaurant_info["email"]},
+            "website": {"website": restaurant_info["website"]},
+            "address": {
+                "street": restaurant_info["street"],
+                "city": restaurant_info["city"],
+                "zip_code": restaurant_info["zip_code"],
+                "country": restaurant_info["country"],
+            },
+            "location": {
+                "street": restaurant_info["street"],
+                "city": restaurant_info["city"],
+                "country": restaurant_info["country"],
+            },
+            "opening_hours": {"opening_hours": opening_hours},
+            "contact_info": {
+                "phone": restaurant_info["phone"],
+                "email": restaurant_info["email"],
+            },
+        }
 
-    # except Exception as e:
-    #     return {
-    #         "available": False,
-    #         "message": "Error checking availability",
-    #         "suggestions": [],
-    #     }
+        if query in query_mapping:
+            return {"status": "success", "query": query, **query_mapping[query]}
+
+        # Return all information for 'all_info' or unrecognized queries
+        return {"status": "success", "query": "complete_information", **restaurant_info}
+
+    except Exception as e:
+        logger.error(f"Error in handle_get_restaurant_information: {str(e)}")
+        return {"error": f"Failed to get restaurant information: {str(e)}"}
+
+
+def handle_get_menu_items(call, organization) -> Dict[str, Any]:
+    """Handle get_menu_items tool call"""
+    try:
+        args = json.loads(call.function.arguments)
+        logger.info(f"Get all menu arguments: {args}")
+
+        category = args.get("category", None)
+        classification = args.get("classification", None)
+
+        if not (category and classification):
+            return {"error": "Missing category and classification"}
+
+        # Build menu filter
+        menu_filter = {
+            "organization": organization,
+            "status": MenuStatus.ACTIVE,
+            "category": category,
+            "classification": classification,
+        }
+
+        # Get menu items
+        menu_items = Menu.objects.filter(**menu_filter).order_by("category", "name")
+
+        if not menu_items.exists():
+            return {
+                "status": "no_items",
+                "message": f"No {classification.lower()} items available in {category.replace('_', ' ').title()} category",
+                "category": category,
+                "classification": classification,
+            }
+
+        # Format menu items for display
+        items = []
+        for item in menu_items:
+            allergens_str = ", ".join(item.allergens) if item.allergens else "None"
+            ingredients_str = (
+                ", ".join(item.ingredients) if item.ingredients else "Not specified"
+            )
+
+            items.append(
+                {
+                    "image": item.image if item.image else None,
+                    "name": item.name,
+                    "description": item.description or "No description available",
+                    "price": float(item.price),
+                    "ingredients": ingredients_str,
+                    "category": item.category,
+                    "classification": item.classification,
+                    "allergens": allergens_str,
+                    "macronutrients": item.macronutrients,
+                    "uid": str(item.uid),
+                }
+            )
+
+        return {
+            "status": "success",
+            "category": category.replace("_", " ").title(),
+            "classification": classification.title(),
+            "items": items,
+            "total_items": len(items),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in handle_get_menu_items: {str(e)}")
+        return {"error": f"Failed to get menu items: {str(e)}"}
+
+
+def handle_get_available_tables(call, organization) -> Dict[str, Any]:
+    """Handle get_available_tables tool call"""
+    try:
+        args = json.loads(call.function.arguments)
+        logger.info(f"Get available tables arguments: {args}")
+
+        guests = args.get("guests")
+        date_str = args.get("date")
+        time_str = args.get("time")
+
+        logger.info(f"Guests: {guests}, Date: {date_str}, Time: {time_str}")
+
+        if not date_str:
+            return {"error": "Date is required"}
+
+        if not guests:
+            return {"error": "Number of guests is required"}
+
+        # Validate and parse date/time
+        try:
+            reservation_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            reservation_time = None
+            if time_str:
+                reservation_time = datetime.strptime(time_str, "%H:%M").time()
+        except ValueError as e:
+            return {"error": f"Invalid date or time format: {str(e)}"}
+
+        # Check if requested date is in the past
+        if reservation_date < date.today():
+            return {"error": "Cannot check availability for past dates"}
+
+        # Check if requested time is in the past
+        if reservation_time and reservation_time < datetime.now().time():
+            return {"error": "Cannot check availability for past times"}
+
+        # Get all tables for the organization
+        all_tables = RestaurantTable.objects.filter(
+            organization=organization,
+            capacity__gte=guests,
+            status=TableStatus.AVAILABLE,
+        )
+
+        if not all_tables.exists():
+            return {
+                "status": "no_tables",
+                "message": "No tables available at the restaurant",
+            }
+
+        available_tables = []
+        busy_tables = []
+
+        for table in all_tables:
+            is_available = is_table_available(table, reservation_date, reservation_time)
+
+            table_info = {
+                "uid": str(table.uid),
+                "name": table.name,
+                "capacity": table.capacity,
+                "category": table.category,
+            }
+
+            if is_available:
+                available_tables.append(table_info)
+            else:
+                busy_tables.append(table_info)
+
+        # If specific time requested but no tables available, suggest alternatives
+        suggestions = []
+        if time_str and available_tables == []:
+            suggestions = get_alternative_time_slots(
+                reservation_date, 2, organization, limit=3
+            )
+
+        return {
+            "status": "success",
+            "date": date_str,
+            "time": time_str,
+            "available_tables": available_tables,
+            "busy_tables": busy_tables,
+            "total_available": len(available_tables),
+            "total_busy": len(busy_tables),
+            "suggestions": suggestions if available_tables == [] else [],
+        }
+
+    except Exception as e:
+        logger.error(f"Error in handle_get_available_tables: {str(e)}")
+        return {"error": f"Failed to get available tables: {str(e)}"}
+
+
+def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
+    """Handle book_table tool call"""
+    try:
+        args = json.loads(call.function.arguments)
+        logger.info(f"Book table arguments: {args}")
+
+        # Extract required data
+        reservation_name = args.get("reservation_name")
+        phone_number = args.get("phone_number")
+        reservation_date_str = args.get("date")
+        reservation_time_str = args.get("time")
+        guests = args.get("guests")
+        booking_reason = args.get("booking_reason", "General dining")
+
+        # Extract optional data
+        special_notes = args.get("special_notes", "")
+
+        # Validate required fields
+        if not all(
+            [
+                reservation_name,
+                phone_number,
+                reservation_date_str,
+                reservation_time_str,
+                guests,
+                booking_reason,
+            ]
+        ):
+            missing_fields = []
+            if not reservation_name:
+                missing_fields.append("reservation_name")
+            if not phone_number:
+                missing_fields.append("phone_number")
+            if not reservation_date_str:
+                missing_fields.append("date")
+            if not reservation_time_str:
+                missing_fields.append("time")
+            if not guests:
+                missing_fields.append("guests")
+            if not booking_reason:
+                missing_fields.append("booking_reason")
+
+            return {
+                "error": f"Missing required booking information: {', '.join(missing_fields)}"
+            }
+
+        # Validate and parse date/time
+        try:
+            reservation_date = datetime.strptime(
+                reservation_date_str, "%Y-%m-%d"
+            ).date()
+            reservation_time = datetime.strptime(reservation_time_str, "%H:%M").time()
+        except ValueError as e:
+            return {"error": f"Invalid date or time format: {str(e)}"}
+
+        # Validate reservation is not in the past
+        reservation_datetime = datetime.combine(reservation_date, reservation_time)
+        if reservation_datetime <= datetime.now():
+            return {"error": "Cannot make reservations for past dates/times"}
+
+        # Validate guest count
+        try:
+            guests = int(guests)
+            if guests <= 0:
+                return {"error": "Number of guests must be positive"}
+            if guests > 50:
+                return {"error": "Maximum 50 guests allowed per reservation"}
+        except (ValueError, TypeError):
+            return {"error": "Invalid number of guests"}
+
+        # Find suitable tables
+        suitable_tables = RestaurantTable.objects.filter(
+            organization=organization,
+            capacity__gte=guests,
+            status=TableStatus.AVAILABLE,
+        ).order_by("capacity")
+
+        logger.info(
+            f"Found {suitable_tables.count()} suitable tables for {guests} guests"
+        )
+
+        if not suitable_tables.exists():
+            return {
+                "status": "no_suitable_tables",
+                "message": f"No tables available for {guests} guests",
+            }
+
+        # Find an available table
+        selected_table = None
+        for table in suitable_tables:
+            if is_table_available(table, reservation_date, reservation_time):
+                selected_table = table
+                break
+
+        if not selected_table:
+            # Get alternative time suggestions
+            suggestions = get_alternative_time_slots(
+                reservation_date, guests, organization, limit=3
+            )
+            return {
+                "status": "time_unavailable",
+                "message": f"No tables available at {reservation_time_str} on {reservation_date_str}",
+                "suggestions": suggestions,
+            }
+
+        # Create the reservation
+        try:
+            reservation = Reservation.objects.create(
+                client=customer,
+                reservation_name=reservation_name,
+                reservation_date=reservation_date,
+                reservation_time=reservation_time,
+                guests=guests,
+                table=selected_table,
+                organization=organization,
+                reservation_reason=booking_reason,
+                notes=special_notes,
+                reservation_phone=(
+                    phone_number if phone_number != customer.whatsapp_number else None
+                ),
+                reservation_status=ReservationStatus.PLACED,
+            )
+
+            return {
+                "status": "success",
+                "reservation_uid": str(reservation.uid),
+                "reservation_code": reservation.reservation_code,
+                "table_name": selected_table.name,
+                "table_category": selected_table.category,
+                "table_position": selected_table.position or "Standard seating",
+                "table_capacity": selected_table.capacity,
+                "date": str(reservation.reservation_date),
+                "time": str(reservation.reservation_time),
+                "guests": guests,
+                "reservation_name": reservation_name,
+                "booking_reason": booking_reason,
+                "special_notes": special_notes,
+                "reservation_phone": phone_number,
+            }
+
+        except Exception as e:
+            logger.error(f"Error creating reservation: {str(e)}")
+            return {"error": f"Failed to create reservation: {str(e)}"}
+
+    except Exception as e:
+        logger.error(f"Error in handle_book_table: {str(e)}")
+        return {"error": f"Booking failed: {str(e)}"}
+
+
+def handle_add_menu_to_reservation(call, organization) -> Dict[str, Any]:
+    """Handle add_menu_to_reservation tool call"""
+    try:
+        args = json.loads(call.function.arguments)
+        logger.info(f"Add menu to reservation arguments: {args}")
+
+        reservation_uid = args.get("reservation_uid")
+        menu_items = args.get("menu_items", [])
+
+        if not reservation_uid:
+            return {"error": "Reservation UID is required"}
+
+        if not menu_items:
+            return {"error": "At least one menu item is required"}
+
+        # Get the reservation
+        try:
+            reservation = Reservation.objects.get(
+                uid=reservation_uid,
+                organization=organization,
+                reservation_status__in=[
+                    ReservationStatus.PLACED,
+                    ReservationStatus.INPROGRESS,
+                ],
+            )
+        except Reservation.DoesNotExist:
+            return {"error": "Reservation not found or already completed/cancelled"}
+
+        # Process menu items
+        added_items = []
+        failed_items = []
+        total_price = 0
+
+        for item_data in menu_items:
+            menu_name = item_data.get("menu_name", "").strip()
+            quantity = item_data.get("quantity", 1)
+            special_instructions = item_data.get("special_instructions", "")
+
+            if not menu_name:
+                failed_items.append("Missing menu name")
+                continue
+
+            try:
+                quantity = int(quantity)
+                if quantity <= 0:
+                    failed_items.append(f"Invalid quantity for '{menu_name}'")
+                    continue
+            except (ValueError, TypeError):
+                failed_items.append(f"Invalid quantity for '{menu_name}'")
+                continue
+
+            try:
+                # Find the menu item (case-insensitive search)
+                menu_item = Menu.objects.get(
+                    name__iexact=menu_name,
+                    organization=organization,
+                    status=MenuStatus.ACTIVE,
+                )
+
+                # Add to reservation (add multiple times for quantity > 1)
+                for _ in range(quantity):
+                    reservation.menus.add(menu_item)
+
+                item_total = float(menu_item.price) * quantity
+                total_price += item_total
+
+                added_items.append(
+                    {
+                        "name": menu_item.name,
+                        "quantity": quantity,
+                        "unit_price": float(menu_item.price),
+                        "total_price": item_total,
+                        "special_instructions": special_instructions,
+                    }
+                )
+
+            except Menu.DoesNotExist:
+                failed_items.append(f"Menu item '{menu_name}' not found or unavailable")
+                logger.warning(
+                    f"Menu item '{menu_name}' not found for organization {organization}"
+                )
+
+        if not added_items and failed_items:
+            return {
+                "status": "failed",
+                "message": "No menu items could be added",
+                "failed_items": failed_items,
+            }
+
+        return {
+            "status": "success" if added_items else "partial",
+            "reservation_uid": reservation_uid,
+            "added_items": added_items,
+            "failed_items": failed_items,
+            "total_items_added": len(added_items),
+            "total_price": round(total_price, 2),
+            "message": f"Successfully added {len(added_items)} menu items"
+            + (f". {len(failed_items)} items failed." if failed_items else ""),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in handle_add_menu_to_reservation: {str(e)}")
+        return {"error": f"Failed to add menu items: {str(e)}"}
+
+
+def handle_cancel_reservation(call, organization) -> Dict[str, Any]:
+    """Handle cancel_reservation tool call"""
+    try:
+        args = json.loads(call.function.arguments)
+        logger.info(f"Cancel reservation arguments: {args}")
+
+        reservation_code = args.get("reservation_code")
+        cancellation_reason = args.get("cancellation_reason", "").strip()
+
+        if not reservation_code:
+            return {"error": "Reservation confirmation code is required"}
+
+        if not cancellation_reason:
+            return {"error": "Cancellation reason is required"}
+
+        # Get the reservation
+        try:
+            reservation = Reservation.objects.get(
+                reservation_code=reservation_code, organization=organization
+            )
+        except Reservation.DoesNotExist:
+            return {"error": "Reservation not found"}
+
+        # Check if reservation can be cancelled
+        if reservation.reservation_status in [
+            ReservationStatus.CANCELLED,
+            ReservationStatus.COMPLETED,
+        ]:
+            return {
+                "error": f"Cannot cancel reservation - it is already {reservation.reservation_status.lower()}"
+            }
+
+        # Check if reservation is in the past
+        reservation_datetime = datetime.combine(
+            reservation.reservation_date, reservation.reservation_time
+        )
+        if reservation_datetime <= datetime.now():
+            return {"error": "Cannot cancel past reservations"}
+
+        # Store original details for response
+        original_details = {
+            "reservation_phone": reservation_code,
+            "reservation_name": reservation.reservation_name,
+            "date": str(reservation.reservation_date),
+            "time": str(reservation.reservation_time),
+            "guests": reservation.guests,
+            "table_name": reservation.table.name,
+            "original_status": reservation.reservation_status,
+        }
+
+        # Cancel the reservation
+        try:
+            reservation.reservation_status = ReservationStatus.CANCELLED
+            reservation.cancellation_reason = cancellation_reason
+            reservation.cancelled_by = ReservationCancelledBy.CUSTOMER
+            reservation.save()
+
+            logger.info(
+                f"Reservation with this code: {reservation_code} successfully cancelled"
+            )
+
+            return {
+                "status": "success",
+                "message": "Reservation successfully cancelled",
+                "cancellation_reason": cancellation_reason,
+                **original_details,
+            }
+
+        except Exception as e:
+            logger.error(f"Error saving cancelled reservation: {str(e)}")
+            return {"error": f"Failed to cancel reservation: {str(e)}"}
+
+    except Exception as e:
+        logger.error(f"Error in handle_cancel_reservation: {str(e)}")
+        return {"error": f"Failed to cancel reservation: {str(e)}"}
+
+
+def is_table_available(
+    table: RestaurantTable,
+    reservation_date: date,
+    reservation_time: Optional[datetime.time] = None,
+) -> bool:
+    """Check if a table is available at the specified date and time"""
+    try:
+        base_filter = {
+            "table": table,
+            "reservation_date": reservation_date,
+            "reservation_end_time__isnull": True,
+            "reservation_status__in": [
+                ReservationStatus.PLACED,
+                ReservationStatus.INPROGRESS,
+            ],
+        }
+
+        if reservation_time:
+            # Calculate time range -3 and +1 hours
+            start_time = (
+                datetime.combine(reservation_date, reservation_time)
+                - timedelta(hours=3)
+            ).time()
+            end_time = (
+                datetime.combine(reservation_date, reservation_time)
+                + timedelta(hours=1)
+            ).time()
+
+            base_filter["reservation_time__range"] = (start_time, end_time)
+
+        conflicting_reservations = Reservation.objects.filter(**base_filter)
+        return not conflicting_reservations.exists()
+
+    except Exception as e:
+        logger.error(f"Error checking table availability: {str(e)}")
+        return False
 
 
 def get_alternative_time_slots(
-    date: date, guests: int, organization: object, limit: int = 3
-) -> list:
+    date: date, guests: int, organization, limit: int = 3
+) -> List[Dict[str, Any]]:
     """Get alternative available time slots for the same date"""
-    # try:
-    time_slots = [
-        "11:00",
-        "11:30",
-        "12:00",
-        "12:30",
-        "13:00",
-        "13:30",
-        "14:00",
-        "18:00",
-        "18:30",
-        "19:00",
-        "19:30",
-        "20:00",
-        "20:30",
-        "21:00",
-    ]
+    try:
+        # Common restaurant time slots
+        time_slots = [
+            "09:00",
+            "09:30",
+            "10:00",
+            "10:30",
+            "11:00",
+            "11:30",
+            "12:00",
+            "12:30",
+            "13:00",
+            "13:30",
+            "14:00",
+            "18:00",
+            "18:30",
+            "19:00",
+            "19:30",
+            "20:00",
+            "20:30",
+            "21:00",
+            "21:30",
+            "22:00",
+            "22:30",
+            "23:00",
+            "23:30",
+        ]
 
-    alternatives = []
-    for time_str in time_slots:
-        availability = check_table_availability(
-            date.strftime("%Y-%m-%d"), time_str, guests, organization
+        alternatives = []
+        suitable_tables = RestaurantTable.objects.filter(
+            organization=organization,
+            capacity__gte=guests,
+            status=TableStatus.AVAILABLE,
         )
-        if availability["available"] and len(alternatives) < limit:
-            alternatives.append(
-                {"time": time_str, "tables_count": len(availability["tables"])}
-            )
 
-    return alternatives
-    # except Exception as e:
-    #     return []
+        for time_str in time_slots:
+            if len(alternatives) >= limit:
+                break
+
+            try:
+                time_obj = datetime.strptime(time_str, "%H:%M").time()
+                available_count = 0
+
+                for table in suitable_tables:
+                    if is_table_available(table, date, time_obj):
+                        available_count += 1
+
+                if available_count > 0:
+                    alternatives.append(
+                        {"time": time_str, "available_tables": available_count}
+                    )
+
+            except ValueError:
+                continue
+
+        return alternatives
+
+    except Exception as e:
+        logger.error(f"Error getting alternative time slots: {str(e)}")
+        return []

@@ -1,3 +1,5 @@
+import random
+
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -23,7 +25,11 @@ from .choices import (
     ClientMessageRole,
     ClientSource,
 )
-from .utils import get_restaurant_media_path_prefix, get_client_media_path_prefix
+from .utils import (
+    get_restaurant_media_path_prefix,
+    get_client_media_path_prefix,
+    generate_reservation_code,
+)
 
 
 User = get_user_model()
@@ -70,8 +76,8 @@ class Menu(BaseModel):
     )
 
     class Meta:
-        verbose_name = "Dish"
-        verbose_name_plural = "Dishes"
+        verbose_name = "Menu"
+        verbose_name_plural = "Menus"
 
     def __str__(self):
         return self.name
@@ -260,10 +266,13 @@ class Reservation(BaseModel):
     client = models.ForeignKey(
         Client, on_delete=models.CASCADE, related_name="reservations"
     )
-    reservation_phone = PhoneNumberField(blank=True, null=True)
+    reservation_code = models.CharField(max_length=10, unique=True, db_index=True)
+    reservation_name = models.CharField(max_length=255, blank=True, null=True)
+    reservation_phone = models.CharField(max_length=100, blank=True, null=True)
     reservation_date = models.DateField()
     reservation_time = models.TimeField()
-    end_time = models.DateTimeField(blank=True, null=True)
+    reservation_end_time = models.DateTimeField(blank=True, null=True)
+    reservation_reason = models.TextField(blank=True, null=True)
     guests = models.PositiveSmallIntegerField()
     notes = models.TextField(blank=True, null=True)
     reservation_status = models.CharField(
@@ -273,6 +282,7 @@ class Reservation(BaseModel):
     )
     cancelled_by = models.CharField(
         max_length=20,
+        blank=True,
         choices=ReservationCancelledBy.choices,
         default=ReservationCancelledBy.SYSTEM,
     )
@@ -294,6 +304,7 @@ class Reservation(BaseModel):
         verbose_name_plural = "Reservations"
 
     def save(self, *args, **kwargs):
+        self.reservation_code = generate_reservation_code(self)
         if self.cancelled_by == ReservationStatus.CANCELLED:
             if not self.cancellation_reason:
                 raise ValidationError(
