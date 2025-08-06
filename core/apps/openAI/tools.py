@@ -118,7 +118,6 @@ def function_tools(sales_level):
                         "type": "object",
                         "required": [
                             "name",
-                            "phone_number",
                             "date",
                             "time",
                             "guests",
@@ -131,7 +130,7 @@ def function_tools(sales_level):
                                 "description": "Full name of the person making the reservation.",
                                 "minLength": 1,
                             },
-                            "phone_number": {
+                            "reservation_phone": {
                                 "type": "string",
                                 "title": "Contact Number",
                                 "description": "Customer's phone number (WhatsApp preferred) with country code if international.",
@@ -154,9 +153,8 @@ def function_tools(sales_level):
                             "guests": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "maximum": 50,
                                 "title": "Number of Guests",
-                                "description": "Total number of guests including the person making the reservation (minimum 1, maximum 50).",
+                                "description": "Total number of guests including the person making the reservation (minimum 1).",
                             },
                             "booking_reason": {
                                 "type": "string",
@@ -196,20 +194,13 @@ def function_tools(sales_level):
                                 "minItems": 1,
                                 "items": {
                                     "type": "object",
-                                    "required": ["menu_name", "quantity"],
+                                    "required": ["menu_name"],
                                     "properties": {
                                         "menu_name": {
                                             "type": "string",
                                             "title": "Menu Item Name",
                                             "description": "Exact name of the menu item as it appears in the menu.",
                                             "minLength": 1,
-                                        },
-                                        "quantity": {
-                                            "type": "integer",
-                                            "minimum": 1,
-                                            "maximum": 20,
-                                            "title": "Quantity",
-                                            "description": "Number of this menu item to add (minimum 1, maximum 20 per item).",
                                         },
                                         "special_instructions": {
                                             "type": "string",

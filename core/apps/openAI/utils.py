@@ -281,7 +281,6 @@ def handle_get_menu_items(call, organization) -> Dict[str, Any]:
 
             items.append(
                 {
-                    "image": item.image if item.image else None,
                     "name": item.name,
                     "description": item.description or "No description available",
                     "price": float(item.price),
@@ -404,7 +403,7 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
 
         # Extract required data
         reservation_name = args.get("reservation_name")
-        phone_number = args.get("phone_number")
+        reservation_phone = args.get("reservation_phone")
         reservation_date_str = args.get("date")
         reservation_time_str = args.get("time")
         guests = args.get("guests")
@@ -417,7 +416,6 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
         if not all(
             [
                 reservation_name,
-                phone_number,
                 reservation_date_str,
                 reservation_time_str,
                 guests,
@@ -427,8 +425,6 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
             missing_fields = []
             if not reservation_name:
                 missing_fields.append("reservation_name")
-            if not phone_number:
-                missing_fields.append("phone_number")
             if not reservation_date_str:
                 missing_fields.append("date")
             if not reservation_time_str:
@@ -461,8 +457,6 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
             guests = int(guests)
             if guests <= 0:
                 return {"error": "Number of guests must be positive"}
-            if guests > 50:
-                return {"error": "Maximum 50 guests allowed per reservation"}
         except (ValueError, TypeError):
             return {"error": "Invalid number of guests"}
 
@@ -501,6 +495,9 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
                 "suggestions": suggestions,
             }
 
+        if not reservation_phone:
+            reservation_phone = customer.whatsapp_number
+
         # Create the reservation
         try:
             reservation = Reservation.objects.create(
@@ -513,9 +510,7 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
                 organization=organization,
                 reservation_reason=booking_reason,
                 notes=special_notes,
-                reservation_phone=(
-                    phone_number if phone_number != customer.whatsapp_number else None
-                ),
+                reservation_phone=reservation_phone,
                 reservation_status=ReservationStatus.PLACED,
             )
 
@@ -533,7 +528,7 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
                 "reservation_name": reservation_name,
                 "booking_reason": booking_reason,
                 "special_notes": special_notes,
-                "reservation_phone": phone_number,
+                "reservation_phone": reservation_phone,
             }
 
         except Exception as e:

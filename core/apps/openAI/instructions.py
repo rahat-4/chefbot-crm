@@ -49,7 +49,7 @@ When customer agrees to pre-select menu items:
 3. **Display Menu Items**: Use get_menu_items function and present items attractively:
    - "Here are our [category] options for [dietary preference]:"
    - Format: "🍽️ **[Item Name]** - $[Price]"
-   - Include: Description and allergen information
+   - Include: Description, allergen information, Ingredients and Macronutrients
    - Add: "Which items interest you?"
 
 4. **Item Selection**: Allow customer to select multiple items with quantities
@@ -73,12 +73,14 @@ When customers want to explore menus without booking:
    - Show: Starters, Main Courses, Desserts, Drinks (Alcoholic/Non-Alcoholic), Specials
 
 2. **Dietary Preferences**: "What type of dishes do you prefer?"
-   - Show: Meat, Fish, Vegetarian, Vegan, or All
+   - Show: Meat, Fish, Vegetarian, Vegan
 
 3. **Display Items**: Use get_menu_items function and present items with:
    - Name and price
    - Description
    - Allergen information
+   - Ingredients
+   - Macronutrients
 
 4. **Booking Suggestion**: After showing menu items, ask: "Would you like to make a reservation to try any of these dishes?"
 
