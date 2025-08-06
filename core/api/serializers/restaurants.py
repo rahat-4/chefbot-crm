@@ -111,6 +111,10 @@ class RestaurantTableSerializer(serializers.ModelSerializer):
 
 
 class RestaurantMenuSerializer(serializers.ModelSerializer):
+    recommended_combinations = serializers.SlugRelatedField(
+        queryset=Menu.objects.all(), many=True, slug_field="uid", write_only=True
+    )
+    recommended_combinations_names = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Menu
@@ -128,7 +132,11 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
             "upselling_priority",
             "enable_upselling",
             "recommended_combinations",
+            "recommended_combinations_names",
         ]
+
+    def get_recommended_combinations_names(self, obj):
+        return [menu.name for menu in obj.recommended_combinations.all()]
 
     def create(self, validated_data):
         ingredients = validated_data.get("ingredients", [])

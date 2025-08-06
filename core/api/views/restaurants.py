@@ -97,9 +97,14 @@ class RestaurantMenuListView(ListCreateAPIView):
         return self.queryset.filter(organization__uid=organization_uid)
 
     def perform_create(self, serializer):
-        serializer.save(
-            organization=self.request.user.organization_users.first().organization
-        )
+        organization_uid = self.kwargs.get("restaurant_uid")
+
+        organization = Organization.objects.filter(uid=organization_uid).first()
+
+        if not organization:
+            raise ValidationError({"organization": "Invalid organization."})
+
+        serializer.save(organization=organization)
         return super().perform_create(serializer)
 
 
