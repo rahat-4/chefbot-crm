@@ -1,3 +1,5 @@
+import logging
+
 from django.db import transaction
 
 from rest_framework import serializers
@@ -23,6 +25,9 @@ from apps.restaurant.models import (
     PromotionTrigger,
     RestaurantTable,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class OpeningHoursSerializer(serializers.ModelSerializer):
@@ -112,9 +117,10 @@ class RestaurantTableSerializer(serializers.ModelSerializer):
 
 class RestaurantMenuSerializer(serializers.ModelSerializer):
     recommended_combinations = serializers.SlugRelatedField(
-        queryset=Menu.objects.all(), many=True, slug_field="uid", write_only=True
+        queryset=Menu.objects.none(),
+        many=True,
+        slug_field="uid",
     )
-    recommended_combinations_names = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Menu
@@ -132,32 +138,62 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
             "upselling_priority",
             "enable_upselling",
             "recommended_combinations",
-            "recommended_combinations_names",
         ]
 
-    def get_recommended_combinations_names(self, obj):
-        return [menu.name for menu in obj.recommended_combinations.all()]
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        restaurant = self._get_restaurant_from_context()
+        if restaurant:
+            self.fields["recommended_combinations"].queryset = Menu.objects.filter(
+                organization=restaurant
+            )
 
-    def create(self, validated_data):
+    def _get_restaurant_from_context(self):
+        view = self.context.get("view")
+        if not view:
+            return None
+        restaurant_uid = view.kwargs.get("restaurant_uid")
+        return Organization.objects.filter(uid=restaurant_uid).first()
+
+    def validate(self, attrs):
+        errors = {}
+        restaurant = self._get_restaurant_from_context()
+
+        if not restaurant:
+            errors["restaurant"] = ["Invalid restaurant."]
+        elif Menu.objects.filter(
+            organization=restaurant, name=attrs.get("name")
+        ).exists():
+            errors["name"] = [
+                "A menu with this name already exists in this restaurant."
+            ]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation["recommended_combinations"] = [
+            menu.name for menu in instance.recommended_combinations.all()
+        ]
+        return representation
+
+    def _auto_generate_nutrition_info(self, validated_data):
         ingredients = validated_data.get("ingredients", [])
-
         if ingredients:
             response = generate_nutrition_info(ingredients)
+            validated_data["allergens"] = response.get("allergens", [])
+            validated_data["macronutrients"] = response.get("macronutrients", {})
+        return validated_data
 
-            validated_data["allergens"] = response["allergens"]
-            validated_data["macronutrients"] = response["macronutrients"]
-
+    def create(self, validated_data):
+        validated_data = self._auto_generate_nutrition_info(validated_data)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        ingredients = validated_data.get("ingredients", [])
-
-        if ingredients:
-            response = generate_nutrition_info(ingredients)
-
-            validated_data["allergens"] = response["allergens"]
-            validated_data["macronutrients"] = response["macronutrients"]
-
+        validated_data = self._auto_generate_nutrition_info(validated_data)
         return super().update(instance, validated_data)
 
 

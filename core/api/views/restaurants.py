@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import get_object_or_404
 
 from rest_framework.generics import (
@@ -29,6 +31,9 @@ from ..serializers.restaurants import (
     RestaurantWhatsAppBotUpdateSerializer,
     RestaurantPromotionSerializer,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class RestaurantListView(ListCreateAPIView):
@@ -88,24 +93,24 @@ class RestaurantTableListView(ListCreateAPIView):
 
 
 class RestaurantMenuListView(ListCreateAPIView):
-    queryset = Menu.objects.filter(status=MenuStatus.ACTIVE)
     serializer_class = RestaurantMenuSerializer
     permission_classes = [IsOwner]
 
     def get_queryset(self):
-        organization_uid = self.kwargs.get("restaurant_uid")
-        return self.queryset.filter(organization__uid=organization_uid)
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        return Menu.objects.filter(
+            status=MenuStatus.ACTIVE,
+            organization__uid=restaurant_uid,
+        )
 
     def perform_create(self, serializer):
-        organization_uid = self.kwargs.get("restaurant_uid")
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        restaurant = Organization.objects.filter(uid=restaurant_uid).first()
 
-        organization = Organization.objects.filter(uid=organization_uid).first()
-
-        if not organization:
+        if not restaurant:
             raise ValidationError({"organization": "Invalid organization."})
 
-        serializer.save(organization=organization)
-        return super().perform_create(serializer)
+        serializer.save(organization=restaurant)
 
 
 class RestaurantMenuDetailView(RetrieveUpdateDestroyAPIView):
@@ -118,12 +123,6 @@ class RestaurantMenuDetailView(RetrieveUpdateDestroyAPIView):
         menu_uid = self.kwargs.get("menu_uid")
 
         return self.queryset.get(organization__uid=organization_uid, uid=menu_uid)
-
-    def perform_destroy(self, instance):
-        instance.status = MenuStatus.DELETED
-        instance.save()
-
-        return instance
 
 
 class RestaurantWhatsAppBotListView(ListCreateAPIView):

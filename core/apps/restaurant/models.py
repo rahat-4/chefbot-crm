@@ -40,7 +40,7 @@ class Menu(BaseModel):
         upload_to=get_restaurant_media_path_prefix, blank=True, null=True
     )
     name = models.CharField(
-        unique=True, db_index=True, max_length=255, help_text="Title of the dish."
+        db_index=True, max_length=255, help_text="Title of the dish."
     )
     description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -79,8 +79,10 @@ class Menu(BaseModel):
         verbose_name = "Menu"
         verbose_name_plural = "Menus"
 
+        unique_together = ["organization", "name"]
+
     def __str__(self):
-        return self.name
+        return f"{self.organization.name} - {self.name}"
 
 
 class SalesLevel(BaseModel):

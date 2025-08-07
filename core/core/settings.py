@@ -224,6 +224,16 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        "api.views.restaurants": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "api.serializers.restaurants": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "apps.openAI.utils": {
             "handlers": ["console", "file"],
             "level": "INFO",
