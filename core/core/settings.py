@@ -198,7 +198,11 @@ ASSISTANT_ID = config("ASSISTANT_ID")
 
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOWED_ORIGINS = ["http://localhost:3000", "http://194.164.77.123:8000"]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://194.164.77.123:8000",
+    "http://194.164.77.123:3000",
+]
 
 
 # Logging configuration

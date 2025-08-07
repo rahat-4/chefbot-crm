@@ -78,7 +78,7 @@ def function_tools(sales_level):
                 "type": "function",
                 "function": {
                     "name": "get_available_tables",
-                    "description": "Check table availability for a specific date and optionally time. Always ask customers for their preferred date, and time if possible, before calling this function.",
+                    "description": "Check table availability for a specific date and optionally time. Always ask customers for their preferred date, and time if possible, before calling this function. Convert 'today' and 'tomorrow' to YYYY-MM-DD format using German timezone before calling.",
                     "parameters": {
                         "type": "object",
                         "required": ["date", "guests"],
@@ -88,7 +88,7 @@ def function_tools(sales_level):
                                 "format": "date",
                                 "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                                 "title": "Reservation Date",
-                                "description": "Reservation date in YYYY-MM-DD format (e.g., 2024-12-25).",
+                                "description": "Reservation date in YYYY-MM-DD format (e.g., 2024-12-25). Must be converted from relative dates like 'today' or 'tomorrow' using German timezone.",
                             },
                             "time": {
                                 "type": "string",
@@ -100,7 +100,6 @@ def function_tools(sales_level):
                             "guests": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "maximum": 50,
                                 "title": "Number of Guests",
                                 "description": "Total number of guests including the person making the reservation (minimum 1, maximum 50).",
                             },
@@ -113,11 +112,11 @@ def function_tools(sales_level):
                 "type": "function",
                 "function": {
                     "name": "book_table",
-                    "description": "Create a new table reservation. Ensure ALL required information is collected from the customer before calling this function. Do not proceed with incomplete information.",
+                    "description": "Create a new table reservation. Ensure ALL required information is collected from the customer before calling this function. Phone number is only required if customer chose NOT to use WhatsApp.",
                     "parameters": {
                         "type": "object",
                         "required": [
-                            "name",
+                            "reservation_name",
                             "date",
                             "time",
                             "guests",
@@ -133,15 +132,21 @@ def function_tools(sales_level):
                             "reservation_phone": {
                                 "type": "string",
                                 "title": "Contact Number",
-                                "description": "Customer's phone number (WhatsApp preferred) with country code if international.",
+                                "description": "Customer's phone number. Only required if customer chose NOT to use WhatsApp number. Include country code if international.",
                                 "pattern": "^[+]?[0-9\\s\\-\\(\\)]{10,15}$",
+                            },
+                            "use_whatsapp": {
+                                "type": "boolean",
+                                "title": "Use WhatsApp Number",
+                                "description": "True if customer wants to use their WhatsApp number as contact, False if they provided a different phone number.",
+                                "default": False,
                             },
                             "date": {
                                 "type": "string",
                                 "format": "date",
                                 "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                                 "title": "Reservation Date",
-                                "description": "Reservation date in YYYY-MM-DD format.",
+                                "description": "Reservation date in YYYY-MM-DD format. Must be converted from relative dates using German timezone.",
                             },
                             "time": {
                                 "type": "string",
@@ -201,12 +206,7 @@ def function_tools(sales_level):
                                             "title": "Menu Item Name",
                                             "description": "Exact name of the menu item as it appears in the menu.",
                                             "minLength": 1,
-                                        },
-                                        "special_instructions": {
-                                            "type": "string",
-                                            "title": "Special Instructions",
-                                            "description": "Optional cooking preferences or modifications for this item.",
-                                        },
+                                        }
                                     },
                                     "additionalProperties": False,
                                 },
@@ -220,7 +220,7 @@ def function_tools(sales_level):
                 "type": "function",
                 "function": {
                     "name": "cancel_reservation",
-                    "description": "Cancel an existing table reservation. Always ask for both customer's phone number and cancellation reason before proceeding.",
+                    "description": "Cancel an existing table reservation. Always ask for both reservation code and cancellation reason before proceeding.",
                     "parameters": {
                         "type": "object",
                         "required": ["reservation_code", "cancellation_reason"],

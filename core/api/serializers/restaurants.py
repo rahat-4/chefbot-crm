@@ -117,7 +117,7 @@ class RestaurantTableSerializer(serializers.ModelSerializer):
 
 class RestaurantMenuSerializer(serializers.ModelSerializer):
     recommended_combinations = serializers.SlugRelatedField(
-        queryset=Menu.objects.none(),
+        queryset=Menu.objects.filter(),
         many=True,
         slug_field="uid",
     )
@@ -140,13 +140,13 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
             "recommended_combinations",
         ]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        restaurant = self._get_restaurant_from_context()
-        if restaurant:
-            self.fields["recommended_combinations"].queryset = Menu.objects.filter(
-                organization=restaurant
-            )
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     restaurant = self._get_restaurant_from_context()
+    #     if restaurant:
+    #         self.fields["recommended_combinations"].queryset = Menu.objects.filter(
+    #             organization=restaurant
+    #         )
 
     def _get_restaurant_from_context(self):
         view = self.context.get("view")
@@ -158,15 +158,20 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         errors = {}
         restaurant = self._get_restaurant_from_context()
+        name = attrs.get("name")
 
         if not restaurant:
             errors["restaurant"] = ["Invalid restaurant."]
-        elif Menu.objects.filter(
-            organization=restaurant, name=attrs.get("name")
-        ).exists():
-            errors["name"] = [
-                "A menu with this name already exists in this restaurant."
-            ]
+        else:
+            # Exclude current instance when updating
+            queryset = Menu.objects.filter(organization=restaurant, name=name)
+            if self.instance:
+                queryset = queryset.exclude(pk=self.instance.pk)
+
+            if queryset.exists():
+                errors["name"] = [
+                    "A menu with this name already exists in this restaurant."
+                ]
 
         if errors:
             raise serializers.ValidationError(errors)
@@ -238,19 +243,19 @@ class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        from apps.openAI.gpt_assistants import create_assistant, update_assistant
-        from apps.openAI.tools import function_tools
-        from apps.openAI.instructions import restaurant_assistant_instruction
+        # from apps.openAI.gpt_assistants import create_assistant, update_assistant
+        # from apps.openAI.tools import function_tools
+        # from apps.openAI.instructions import restaurant_assistant_instruction
 
-        tools = function_tools(validated_data["sales_level"])
-        instructions = restaurant_assistant_instruction(self.organization.name)
+        # tools = function_tools(validated_data["sales_level"])
+        # instructions = restaurant_assistant_instruction(self.organization.name)
 
-        update_assistant(
-            "asst_FAOpOpfdxUpnz69qonPjzr0v",
-            "WhatsApp-based restaurant reservation assistant",
-            instructions,
-            tools,
-        )
+        # update_assistant(
+        #     "asst_I8QylExvJUDgbxTRfd6AfXV0",
+        #     "WhatsApp-based restaurant reservation assistant",
+        #     instructions,
+        #     tools,
+        # )
         crypto_password = config("CRYPTO_PASSWORD")
 
         validated_data["hashed_key"] = hash_key(validated_data["twilio_sid"])

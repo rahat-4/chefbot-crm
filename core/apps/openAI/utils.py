@@ -571,24 +571,12 @@ def handle_add_menu_to_reservation(call, organization) -> Dict[str, Any]:
         # Process menu items
         added_items = []
         failed_items = []
-        total_price = 0
 
         for item_data in menu_items:
             menu_name = item_data.get("menu_name", "").strip()
-            quantity = item_data.get("quantity", 1)
-            special_instructions = item_data.get("special_instructions", "")
 
             if not menu_name:
                 failed_items.append("Missing menu name")
-                continue
-
-            try:
-                quantity = int(quantity)
-                if quantity <= 0:
-                    failed_items.append(f"Invalid quantity for '{menu_name}'")
-                    continue
-            except (ValueError, TypeError):
-                failed_items.append(f"Invalid quantity for '{menu_name}'")
                 continue
 
             try:
@@ -599,20 +587,12 @@ def handle_add_menu_to_reservation(call, organization) -> Dict[str, Any]:
                     status=MenuStatus.ACTIVE,
                 )
 
-                # Add to reservation (add multiple times for quantity > 1)
-                for _ in range(quantity):
-                    reservation.menus.add(menu_item)
-
-                item_total = float(menu_item.price) * quantity
-                total_price += item_total
+                # Add to reservation
+                reservation.menus.add(menu_item)
 
                 added_items.append(
                     {
                         "name": menu_item.name,
-                        "quantity": quantity,
-                        "unit_price": float(menu_item.price),
-                        "total_price": item_total,
-                        "special_instructions": special_instructions,
                     }
                 )
 
@@ -635,7 +615,6 @@ def handle_add_menu_to_reservation(call, organization) -> Dict[str, Any]:
             "added_items": added_items,
             "failed_items": failed_items,
             "total_items_added": len(added_items),
-            "total_price": round(total_price, 2),
             "message": f"Successfully added {len(added_items)} menu items"
             + (f". {len(failed_items)} items failed." if failed_items else ""),
         }
