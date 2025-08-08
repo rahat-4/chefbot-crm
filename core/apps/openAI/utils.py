@@ -15,7 +15,16 @@ from apps.restaurant.choices import (
 )
 from apps.restaurant.models import Client, Reservation, RestaurantTable, Menu
 
+from common.timezones import (
+    is_valid_date,
+    convert_utc_to_restaurant_timezone,
+    get_timezone_from_country_city,
+    parse_reservation_date,
+)
+
 logger = logging.getLogger(__name__)
+
+logger.info("OpenAI utils loaded")
 
 
 def cancel_active_runs(openai_client: OpenAI, thread_id: str) -> None:
@@ -126,47 +135,45 @@ def handle_required_actions(
     for call in run_status.required_action.submit_tool_outputs.tool_calls:
         logger.info(f"Processing tool call: {call.function.name}")
 
-        try:
-            # Route function calls to appropriate handlers
-            function_handlers = {
-                "get_restaurant_information": lambda: handle_get_restaurant_information(
-                    call, organization
-                ),
-                "get_menu_items": lambda: handle_get_menu_items(call, organization),
-                "get_available_tables": lambda: handle_get_available_tables(
-                    call, organization
-                ),
-                "book_table": lambda: handle_book_table(call, organization, customer),
-                "add_menu_to_reservation": lambda: handle_add_menu_to_reservation(
-                    call, organization
-                ),
-                "cancel_reservation": lambda: handle_cancel_reservation(
-                    call, organization
-                ),
-            }
+        # try:
+        # Route function calls to appropriate handlers
+        function_handlers = {
+            "get_restaurant_information": lambda: handle_get_restaurant_information(
+                call, organization
+            ),
+            "get_menu_items": lambda: handle_get_menu_items(call, organization),
+            "get_available_tables": lambda: handle_get_available_tables(
+                call, organization
+            ),
+            "book_table": lambda: handle_book_table(call, organization, customer),
+            "add_menu_to_reservation": lambda: handle_add_menu_to_reservation(
+                call, organization
+            ),
+            "cancel_reservation": lambda: handle_cancel_reservation(
+                call, organization, customer
+            ),
+        }
 
-            handler = function_handlers.get(call.function.name)
-            if handler:
-                result = handler()
-                logger.info(
-                    f"{call.function.name} result-------------------->: {result}"
-                )
-            else:
-                result = {"error": f"Unknown function: {call.function.name}"}
-                logger.warning(f"Unknown function called: {call.function.name}")
+        handler = function_handlers.get(call.function.name)
+        if handler:
+            result = handler()
+            logger.info(f"{call.function.name} result-------------------->: {result}")
+        else:
+            result = {"error": f"Unknown function: {call.function.name}"}
+            logger.warning(f"Unknown function called: {call.function.name}")
 
-            tool_outputs.append({"tool_call_id": call.id, "output": json.dumps(result)})
+        tool_outputs.append({"tool_call_id": call.id, "output": json.dumps(result)})
 
-            logger.info(f"Tool outputs: {tool_outputs}")
+        logger.info(f"Tool outputs: {tool_outputs}")
 
-        except Exception as e:
-            logger.error(f"Error processing tool call {call.function.name}: {str(e)}")
-            tool_outputs.append(
-                {
-                    "tool_call_id": call.id,
-                    "output": json.dumps({"error": f"Tool execution failed: {str(e)}"}),
-                }
-            )
+        # except Exception as e:
+        #     logger.error(f"Error processing tool call {call.function.name}: {str(e)}")
+        #     tool_outputs.append(
+        #         {
+        #             "tool_call_id": call.id,
+        #             "output": json.dumps({"error": f"Tool execution failed: {str(e)}"}),
+        #         }
+        #     )
 
     # Submit tool outputs
     try:
@@ -308,91 +315,104 @@ def handle_get_menu_items(call, organization) -> Dict[str, Any]:
 
 def handle_get_available_tables(call, organization) -> Dict[str, Any]:
     """Handle get_available_tables tool call"""
-    try:
-        args = json.loads(call.function.arguments)
-        logger.info(f"Get available tables arguments: {args}")
+    # try:
+    args = json.loads(call.function.arguments)
+    logger.info(f"Get available tables arguments: {args}")
 
-        guests = args.get("guests")
-        date_str = args.get("date")
-        time_str = args.get("time")
+    guests = args.get("guests")
+    date_str = args.get("date")
+    time_str = args.get("time")
 
-        logger.info(f"Guests: {guests}, Date: {date_str}, Time: {time_str}")
+    logger.info(f"Guests: {guests}, Date: {date_str}, Time: {time_str}")
 
-        if not date_str:
-            return {"error": "Date is required"}
+    if not date_str:
+        return {"error": "Date is required"}
 
-        if not guests:
-            return {"error": "Number of guests is required"}
+    if not guests:
+        return {"error": "Number of guests is required"}
 
-        # Validate and parse date/time
-        try:
-            reservation_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            reservation_time = None
-            if time_str:
-                reservation_time = datetime.strptime(time_str, "%H:%M").time()
-        except ValueError as e:
-            return {"error": f"Invalid date or time format: {str(e)}"}
-
-        # Check if requested date is in the past
-        if reservation_date < date.today():
-            return {"error": "Cannot check availability for past dates"}
-
-        # Check if requested time is in the past
-        if reservation_time and reservation_time < datetime.now().time():
-            return {"error": "Cannot check availability for past times"}
-
-        # Get all tables for the organization
-        all_tables = RestaurantTable.objects.filter(
-            organization=organization,
-            capacity__gte=guests,
-            status=TableStatus.AVAILABLE,
+    if not is_valid_date(date_str):
+        logger.info("Invalid date format")
+        restaurant_location = get_timezone_from_country_city(
+            organization.country, organization.city
         )
 
-        if not all_tables.exists():
-            return {
-                "status": "no_tables",
-                "message": "No tables available at the restaurant",
-            }
+        utc_time = parse_reservation_date(date_str, restaurant_location)
 
-        available_tables = []
-        busy_tables = []
+        logger.info(f"UTC time: {utc_time}")
 
-        for table in all_tables:
-            is_available = is_table_available(table, reservation_date, reservation_time)
+        local_time = convert_utc_to_restaurant_timezone(utc_time, restaurant_location)
 
-            table_info = {
-                "uid": str(table.uid),
-                "name": table.name,
-                "capacity": table.capacity,
-                "category": table.category,
-            }
+        logger.info(f"Local time: {local_time}")
+    # Validate and parse date/time
+    try:
+        reservation_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        reservation_time = None
+        if time_str:
+            reservation_time = datetime.strptime(time_str, "%H:%M").time()
+    except ValueError as e:
+        return {"error": f"Invalid date or time format: {str(e)}"}
 
-            if is_available:
-                available_tables.append(table_info)
-            else:
-                busy_tables.append(table_info)
+    # Check if requested date is in the past
+    if reservation_date < date.today():
+        return {"error": "Cannot check availability for past dates"}
 
-        # If specific time requested but no tables available, suggest alternatives
-        suggestions = []
-        if time_str and available_tables == []:
-            suggestions = get_alternative_time_slots(
-                reservation_date, 2, organization, limit=3
-            )
+    # Check if requested time is in the past
+    if reservation_time and reservation_time < datetime.now().time():
+        return {"error": "Cannot check availability for past times"}
 
+    # Get all tables for the organization
+    all_tables = RestaurantTable.objects.filter(
+        organization=organization,
+        capacity__gte=guests,
+        status=TableStatus.AVAILABLE,
+    )
+
+    if not all_tables.exists():
         return {
-            "status": "success",
-            "date": date_str,
-            "time": time_str,
-            "available_tables": available_tables,
-            "busy_tables": busy_tables,
-            "total_available": len(available_tables),
-            "total_busy": len(busy_tables),
-            "suggestions": suggestions if available_tables == [] else [],
+            "status": "no_tables",
+            "message": "No tables available at the restaurant",
         }
 
-    except Exception as e:
-        logger.error(f"Error in handle_get_available_tables: {str(e)}")
-        return {"error": f"Failed to get available tables: {str(e)}"}
+    available_tables = []
+    busy_tables = []
+
+    for table in all_tables:
+        is_available = is_table_available(table, reservation_date, reservation_time)
+
+        table_info = {
+            "uid": str(table.uid),
+            "name": table.name,
+            "capacity": table.capacity,
+            "category": table.category,
+        }
+
+        if is_available:
+            available_tables.append(table_info)
+        else:
+            busy_tables.append(table_info)
+
+    # If specific time requested but no tables available, suggest alternatives
+    suggestions = []
+    if time_str and available_tables == []:
+        suggestions = get_alternative_time_slots(
+            reservation_date, 2, organization, limit=3
+        )
+
+    return {
+        "status": "success",
+        "date": date_str,
+        "time": time_str,
+        "available_tables": available_tables,
+        "busy_tables": busy_tables,
+        "total_available": len(available_tables),
+        "total_busy": len(busy_tables),
+        "suggestions": suggestions if available_tables == [] else [],
+    }
+
+    # except Exception as e:
+    #     logger.error(f"Error in handle_get_available_tables: {str(e)}")
+    #     return {"error": f"Failed to get available tables: {str(e)}"}
 
 
 def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
@@ -624,36 +644,76 @@ def handle_add_menu_to_reservation(call, organization) -> Dict[str, Any]:
         return {"error": f"Failed to add menu items: {str(e)}"}
 
 
-def handle_cancel_reservation(call, organization) -> Dict[str, Any]:
+def handle_cancel_reservation(call, organization, customer) -> Dict[str, Any]:
     """Handle cancel_reservation tool call"""
     try:
         args = json.loads(call.function.arguments)
         logger.info(f"Cancel reservation arguments: {args}")
 
-        reservation_code = args.get("reservation_code")
+        date_str = args.get("reservation_date")
+        reservation_time_str = args.get("reservation_time")
         cancellation_reason = args.get("cancellation_reason", "").strip()
 
-        if not reservation_code:
-            return {"error": "Reservation confirmation code is required"}
+        if not date_str:
+            return {"error": "Reservation confirmation date is required"}
 
         if not cancellation_reason:
             return {"error": "Cancellation reason is required"}
 
-        # Get the reservation
-        try:
-            reservation = Reservation.objects.get(
-                reservation_code=reservation_code, organization=organization
-            )
-        except Reservation.DoesNotExist:
-            return {"error": "Reservation not found"}
+        logger.info(f"--------------------------> {date_str}")
+        reservation_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        logger.info(f"------------Parsed Date--------------> {reservation_date}")
 
-        # Check if reservation can be cancelled
+        # If specific time is given
+        if reservation_time_str:
+            try:
+                reservation_time = datetime.strptime(
+                    reservation_time_str, "%H:%M"
+                ).time()
+            except ValueError:
+                return {
+                    "error": "Invalid reservation time format. Please use HH:MM (24h format)."
+                }
+
+            reservation = Reservation.objects.filter(
+                client=customer,
+                reservation_date=reservation_date,
+                reservation_time=reservation_time,
+                organization=organization,
+            ).first()
+
+            if not reservation:
+                return {"error": "No reservation found with the given date and time."}
+
+        else:
+            reservations = Reservation.objects.filter(
+                client=customer,
+                reservation_date=reservation_date,
+                organization=organization,
+            )
+
+            if not reservations.exists():
+                return {"error": "No reservation found for the provided date."}
+
+            if reservations.count() > 1:
+                reserved_times = list(
+                    reservations.values_list("reservation_time", flat=True)
+                )
+                return {
+                    "status": "need_time_selection",
+                    "message": "Multiple reservations found for that date. Please specify the time to cancel.",
+                    "available_times": [str(rt) for rt in reserved_times],
+                }
+
+            reservation = reservations.first()
+
+        # Check if already cancelled or completed
         if reservation.reservation_status in [
             ReservationStatus.CANCELLED,
             ReservationStatus.COMPLETED,
         ]:
             return {
-                "error": f"Cannot cancel reservation - it is already {reservation.reservation_status.lower()}"
+                "error": f"Cannot cancel reservation — it's already {reservation.reservation_status.lower()}."
             }
 
         # Check if reservation is in the past
@@ -661,11 +721,11 @@ def handle_cancel_reservation(call, organization) -> Dict[str, Any]:
             reservation.reservation_date, reservation.reservation_time
         )
         if reservation_datetime <= datetime.now():
-            return {"error": "Cannot cancel past reservations"}
+            return {"error": "Cannot cancel a past reservation."}
 
-        # Store original details for response
+        # Store details for confirmation
         original_details = {
-            "reservation_phone": reservation_code,
+            "reservation_phone": reservation.reservation_phone,
             "reservation_name": reservation.reservation_name,
             "date": str(reservation.reservation_date),
             "time": str(reservation.reservation_time),
@@ -675,26 +735,21 @@ def handle_cancel_reservation(call, organization) -> Dict[str, Any]:
         }
 
         # Cancel the reservation
-        try:
-            reservation.reservation_status = ReservationStatus.CANCELLED
-            reservation.cancellation_reason = cancellation_reason
-            reservation.cancelled_by = ReservationCancelledBy.CUSTOMER
-            reservation.save()
+        reservation.reservation_status = ReservationStatus.CANCELLED
+        reservation.cancellation_reason = cancellation_reason
+        reservation.cancelled_by = ReservationCancelledBy.CUSTOMER
+        reservation.save()
 
-            logger.info(
-                f"Reservation with this code: {reservation_code} successfully cancelled"
-            )
+        logger.info(
+            f"Reservation cancelled: {reservation.reservation_date} at {reservation.reservation_time}"
+        )
 
-            return {
-                "status": "success",
-                "message": "Reservation successfully cancelled",
-                "cancellation_reason": cancellation_reason,
-                **original_details,
-            }
-
-        except Exception as e:
-            logger.error(f"Error saving cancelled reservation: {str(e)}")
-            return {"error": f"Failed to cancel reservation: {str(e)}"}
+        return {
+            "status": "success",
+            "message": "Reservation successfully cancelled.",
+            "cancellation_reason": cancellation_reason,
+            **original_details,
+        }
 
     except Exception as e:
         logger.error(f"Error in handle_cancel_reservation: {str(e)}")

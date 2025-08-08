@@ -76,9 +76,15 @@ def whatsapp_bot(request):
             thread_id=customer.thread_id, role="user", content=incoming_message
         )
 
+        # from apps.openAI.tools import function_tools
+        # from apps.openAI.instructions import restaurant_assistant_instruction
+
+        # tools = function_tools(1)
+        # instructions = restaurant_assistant_instruction(bot.organization.name)
         # Create and process run
         run = openai_client.beta.threads.runs.create(
-            thread_id=customer.thread_id, assistant_id=assistant_id
+            thread_id=customer.thread_id,
+            assistant_id=assistant_id,
         )
 
         # Process the run

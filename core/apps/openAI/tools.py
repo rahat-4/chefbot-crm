@@ -8,14 +8,13 @@ def function_tools(sales_level):
     Returns:
         list: List of function tool definitions
     """
-
     if sales_level == 1:
         tools = [
             {
                 "type": "function",
                 "function": {
                     "name": "get_restaurant_information",
-                    "description": "Retrieve specific restaurant details such as contact information, location, hours, or website. Use this when customers ask about basic restaurant information.",
+                    "description": "Retrieve specific restaurant details such as contact information, location, hours, or website. Use when customers ask about basic restaurant info.",
                     "parameters": {
                         "type": "object",
                         "required": ["query"],
@@ -23,7 +22,7 @@ def function_tools(sales_level):
                             "query": {
                                 "type": "string",
                                 "title": "Information Query",
-                                "description": "The specific information requested by the customer. Examples: 'name', 'phone number', 'email', 'website', 'address', 'location', 'opening hours', 'closing time'.",
+                                "description": "Specific info requested. Examples: name, phone number, email, website, address, location, opening hours.",
                                 "enum": [
                                     "name",
                                     "phone_number",
@@ -45,14 +44,13 @@ def function_tools(sales_level):
                 "type": "function",
                 "function": {
                     "name": "get_menu_items",
-                    "description": "Retrieve menu items filtered by category and dietary classification. Always collect both category and classification preferences before calling this function.",
+                    "description": "Retrieve menu items filtered by category and dietary classification. Collect both from customer before calling.",
                     "parameters": {
                         "type": "object",
                         "required": ["category", "classification"],
                         "properties": {
                             "category": {
                                 "type": "string",
-                                "title": "Menu Category",
                                 "enum": [
                                     "STARTERS",
                                     "MAIN_COURSES",
@@ -61,13 +59,12 @@ def function_tools(sales_level):
                                     "DRINKS_NON_ALCOHOLIC",
                                     "SPECIALS",
                                 ],
-                                "description": "Menu category to filter by. Use 'ALL' to show items from all categories.",
+                                "description": "Menu category to filter by.",
                             },
                             "classification": {
                                 "type": "string",
-                                "title": "Dietary Classification",
                                 "enum": ["MEAT", "FISH", "VEGETARIAN", "VEGAN"],
-                                "description": "Dietary classification to filter by.",
+                                "description": "Dietary preference.",
                             },
                         },
                         "additionalProperties": False,
@@ -77,31 +74,44 @@ def function_tools(sales_level):
             {
                 "type": "function",
                 "function": {
+                    "name": "get_menu_details",
+                    "description": "Retrieve full details about a specific menu item. Only use when customer selects a specific dish.",
+                    "parameters": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Exact menu item name.",
+                            }
+                        },
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
                     "name": "get_available_tables",
-                    "description": "Check table availability for a specific date and optionally time. Always ask customers for their preferred date, and time if possible, before calling this function. Convert 'today' and 'tomorrow' to YYYY-MM-DD format using German timezone before calling.",
+                    "description": "Check table availability for a given date (and optional time). Accept natural expressions like 'today', 'tomorrow', or 'next Saturday'.",
                     "parameters": {
                         "type": "object",
                         "required": ["date", "guests"],
                         "properties": {
                             "date": {
                                 "type": "string",
-                                "format": "date",
-                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                                "title": "Reservation Date",
-                                "description": "Reservation date in YYYY-MM-DD format (e.g., 2024-12-25). Must be converted from relative dates like 'today' or 'tomorrow' using German timezone.",
+                                "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', or exact YYYY-MM-DD.",
                             },
                             "time": {
                                 "type": "string",
-                                "format": "time",
                                 "pattern": "^\\d{2}:\\d{2}$",
-                                "title": "Preferred Time",
-                                "description": "Optional preferred reservation time in HH:MM 24-hour format (e.g., 19:30, 14:00).",
+                                "description": "Preferred reservation time in 24h HH:MM format. Optional.",
                             },
                             "guests": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "title": "Number of Guests",
-                                "description": "Total number of guests including the person making the reservation (minimum 1, maximum 50).",
+                                "maximum": 50,
+                                "description": "Total number of guests including the one making the booking.",
                             },
                         },
                         "additionalProperties": False,
@@ -112,7 +122,7 @@ def function_tools(sales_level):
                 "type": "function",
                 "function": {
                     "name": "book_table",
-                    "description": "Create a new table reservation. Ensure ALL required information is collected from the customer before calling this function. Phone number is only required if customer chose NOT to use WhatsApp.",
+                    "description": "Create a new reservation. Ensure all info is collected. Phone number is only needed if WhatsApp is not used.",
                     "parameters": {
                         "type": "object",
                         "required": [
@@ -121,56 +131,45 @@ def function_tools(sales_level):
                             "time",
                             "guests",
                             "booking_reason",
+                            "use_whatsapp",
                         ],
                         "properties": {
                             "reservation_name": {
                                 "type": "string",
-                                "title": "Name for Reservation",
-                                "description": "Full name of the person making the reservation.",
                                 "minLength": 1,
+                                "description": "Full name of the guest making the reservation.",
                             },
                             "reservation_phone": {
                                 "type": "string",
-                                "title": "Contact Number",
-                                "description": "Customer's phone number. Only required if customer chose NOT to use WhatsApp number. Include country code if international.",
                                 "pattern": "^[+]?[0-9\\s\\-\\(\\)]{10,15}$",
+                                "description": "Phone number (only if WhatsApp is not used).",
                             },
                             "use_whatsapp": {
                                 "type": "boolean",
-                                "title": "Use WhatsApp Number",
-                                "description": "True if customer wants to use their WhatsApp number as contact, False if they provided a different phone number.",
-                                "default": False,
+                                "description": "True if WhatsApp number should be used automatically.",
                             },
                             "date": {
                                 "type": "string",
-                                "format": "date",
-                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                                "title": "Reservation Date",
-                                "description": "Reservation date in YYYY-MM-DD format. Must be converted from relative dates using German timezone.",
+                                "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', or exact YYYY-MM-DD.",
                             },
                             "time": {
                                 "type": "string",
-                                "format": "time",
                                 "pattern": "^\\d{2}:\\d{2}$",
-                                "title": "Reservation Time",
-                                "description": "Reservation time in HH:MM 24-hour format (e.g., 19:30, 13:00).",
+                                "description": "Reservation time in HH:MM format.",
                             },
                             "guests": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "title": "Number of Guests",
-                                "description": "Total number of guests including the person making the reservation (minimum 1).",
+                                "description": "Total guests including the reserving person.",
                             },
                             "booking_reason": {
                                 "type": "string",
-                                "title": "Occasion/Reason",
-                                "description": "Reason for the reservation (e.g., 'Birthday', 'Anniversary', 'Business Meeting', 'Family Dinner', 'Casual Dining').",
                                 "minLength": 1,
+                                "description": "Occasion or reason (e.g. 'Birthday', 'Family', 'Business').",
                             },
                             "special_notes": {
                                 "type": "string",
-                                "title": "Special Requests",
-                                "description": "Optional special requests, dietary restrictions, seating preferences, or other notes.",
+                                "description": "Optional notes like seating preferences, allergies, etc.",
                             },
                         },
                         "additionalProperties": False,
@@ -181,31 +180,28 @@ def function_tools(sales_level):
                 "type": "function",
                 "function": {
                     "name": "add_menu_to_reservation",
-                    "description": "Add selected menu items to an existing confirmed reservation. Only use this after a reservation has been successfully created and customer wants to pre-order food.",
+                    "description": "Add pre-selected menu items to a confirmed reservation using its UID.",
                     "parameters": {
                         "type": "object",
                         "required": ["reservation_uid", "menu_items"],
                         "properties": {
                             "reservation_uid": {
                                 "type": "string",
-                                "title": "Reservation ID",
-                                "description": "Unique identifier of the existing reservation to update.",
                                 "minLength": 1,
+                                "description": "Unique ID from booking confirmation.",
                             },
                             "menu_items": {
                                 "type": "array",
-                                "title": "Menu Items",
-                                "description": "List of menu items to add to the reservation.",
                                 "minItems": 1,
+                                "description": "List of selected menu items.",
                                 "items": {
                                     "type": "object",
                                     "required": ["menu_name"],
                                     "properties": {
                                         "menu_name": {
                                             "type": "string",
-                                            "title": "Menu Item Name",
-                                            "description": "Exact name of the menu item as it appears in the menu.",
                                             "minLength": 1,
+                                            "description": "Exact name of the dish.",
                                         }
                                     },
                                     "additionalProperties": False,
@@ -220,22 +216,24 @@ def function_tools(sales_level):
                 "type": "function",
                 "function": {
                     "name": "cancel_reservation",
-                    "description": "Cancel an existing table reservation. Always ask for both reservation code and cancellation reason before proceeding.",
+                    "description": "Cancel a reservation using reservation date (and optionally reservation time). Accept natural expressions like 'today', 'tomorrow', or 'next Saturday'.",
                     "parameters": {
                         "type": "object",
-                        "required": ["reservation_code", "cancellation_reason"],
+                        "required": ["reservation_date", "cancellation_reason"],
                         "properties": {
-                            "reservation_code": {
+                            "reservation_date": {
                                 "type": "string",
-                                "title": "Reservation Code",
-                                "description": "Unique identifier of the reservation to cancel.",
-                                "minLength": 1,
+                                "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', or exact YYYY-MM-DD.",
+                            },
+                            "reservation_time": {
+                                "type": "string",
+                                "pattern": "^\\d{2}:\\d{2}$",
+                                "description": "Time of reservation (only needed if multiple bookings on same date).",
                             },
                             "cancellation_reason": {
                                 "type": "string",
-                                "title": "Cancellation Reason",
-                                "description": "Customer's reason for cancelling the reservation (e.g., 'Change of plans', 'Emergency', 'Schedule conflict').",
                                 "minLength": 1,
+                                "description": "Reason for cancellation.",
                             },
                         },
                         "additionalProperties": False,
@@ -243,9 +241,7 @@ def function_tools(sales_level):
                 },
             },
         ]
-
     else:
-        # Handle other sales levels if needed in the future
-        tools = []
+        tools = []  # Future expansion for other sales levels
 
     return tools

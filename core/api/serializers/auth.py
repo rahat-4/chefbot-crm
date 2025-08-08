@@ -15,6 +15,15 @@ class MeSerializer(serializers.ModelSerializer):
         model = User
         fields = ["uid", "avatar", "first_name", "last_name", "email"]
 
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+
+    #     restaurant = self._get_restaurant_from_context()
+    #     if restaurant:
+    #         self.fields["recommended_combinations"].queryset = Menu.objects.filter(
+    #             organization=restaurant
+    #         )
+
 
 class UserRegistrationSessionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,6 +42,11 @@ class UserRegistrationSessionSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Email already exists.")
+        return value
+
+    def validate_phone(self, value):
+        if User.objects.filter(phone=value).exists():
+            raise serializers.ValidationError("Phone number already exists.")
         return value
 
     def create(self, validated_data):

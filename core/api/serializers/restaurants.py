@@ -251,7 +251,7 @@ class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
         # instructions = restaurant_assistant_instruction(self.organization.name)
 
         # update_assistant(
-        #     "asst_I8QylExvJUDgbxTRfd6AfXV0",
+        #     "asst_cLKgpXm4mQMRCmVnzUoi95Yc",
         #     "WhatsApp-based restaurant reservation assistant",
         #     instructions,
         #     tools,

@@ -1,8 +1,6 @@
 from typing import Optional
 import requests
 
-from django.conf import settings
-
 
 def send_whatsapp_reply(
     to: str, message: str, twilio_sid: str, twilio_auth_token: str, twilio_number: str
@@ -30,7 +28,6 @@ def send_whatsapp_reply(
 
     try:
         response = requests.post(url, data=data, auth=auth)
-        print("=============================>", response)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
