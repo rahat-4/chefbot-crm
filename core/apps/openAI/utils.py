@@ -331,22 +331,23 @@ def handle_get_available_tables(call, organization) -> Dict[str, Any]:
     if not guests:
         return {"error": "Number of guests is required"}
 
-    if not is_valid_date(date_str):
-        logger.info("Invalid date format")
-        restaurant_location = get_timezone_from_country_city(
-            organization.country, organization.city
-        )
-
-        utc_time = parse_reservation_date(date_str, restaurant_location)
-
-        logger.info(f"UTC time: {utc_time}")
-
-        local_time = convert_utc_to_restaurant_timezone(utc_time, restaurant_location)
-
-        logger.info(f"Local time: {local_time}")
     # Validate and parse date/time
     try:
-        reservation_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        if is_valid_date(date_str):
+            reservation_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            logger.info(f"Parsed standard date format: {reservation_date}")
+        else:
+            # Parse natural language date
+            logger.info("Invalid standard date format, trying natural language parsing")
+            restaurant_location = get_timezone_from_country_city(
+                organization.country, organization.city
+            )
+
+            if not restaurant_location:
+                return {"error": "Could not determine restaurant timezone"}
+
+            reservation_date = parse_reservation_date(date_str, restaurant_location)
+            logger.info(f"Parsed natural language date: {reservation_date}")
         reservation_time = None
         if time_str:
             reservation_time = datetime.strptime(time_str, "%H:%M").time()
@@ -460,10 +461,32 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
 
         # Validate and parse date/time
         try:
-            reservation_date = datetime.strptime(
-                reservation_date_str, "%Y-%m-%d"
-            ).date()
+            # First try to parse as standard date format
+            if is_valid_date(reservation_date_str):
+                reservation_date = datetime.strptime(
+                    reservation_date_str, "%Y-%m-%d"
+                ).date()
+                logger.info(f"Parsed standard date format: {reservation_date}")
+            else:
+                # Parse natural language date
+                logger.info(
+                    "Invalid standard date format, trying natural language parsing"
+                )
+                restaurant_location = get_timezone_from_country_city(
+                    organization.country, organization.city
+                )
+
+                if not restaurant_location:
+                    return {"error": "Could not determine restaurant timezone"}
+
+                reservation_date = parse_reservation_date(
+                    reservation_date_str, restaurant_location
+                )
+                logger.info(f"Parsed natural language date: {reservation_date}")
+
+            # Parse time
             reservation_time = datetime.strptime(reservation_time_str, "%H:%M").time()
+
         except ValueError as e:
             return {"error": f"Invalid date or time format: {str(e)}"}
 
@@ -471,6 +494,8 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
         reservation_datetime = datetime.combine(reservation_date, reservation_time)
         if reservation_datetime <= datetime.now():
             return {"error": "Cannot make reservations for past dates/times"}
+
+        logger.info("-----------fffffffffffffff--------->", reservation_datetime)
 
         # Validate guest count
         try:
@@ -660,9 +685,21 @@ def handle_cancel_reservation(call, organization, customer) -> Dict[str, Any]:
         if not cancellation_reason:
             return {"error": "Cancellation reason is required"}
 
-        logger.info(f"--------------------------> {date_str}")
-        reservation_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        logger.info(f"------------Parsed Date--------------> {reservation_date}")
+        if is_valid_date(date_str):
+            reservation_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            logger.info(f"Parsed standard date format: {reservation_date}")
+        else:
+            # Parse natural language date
+            logger.info("Invalid standard date format, trying natural language parsing")
+            restaurant_location = get_timezone_from_country_city(
+                organization.country, organization.city
+            )
+
+            if not restaurant_location:
+                return {"error": "Could not determine restaurant timezone"}
+
+            reservation_date = parse_reservation_date(date_str, restaurant_location)
+            logger.info(f"Parsed natural language date: {reservation_date}")
 
         # If specific time is given
         if reservation_time_str:

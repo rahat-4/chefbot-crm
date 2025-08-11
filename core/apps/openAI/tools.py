@@ -100,7 +100,7 @@ def function_tools(sales_level):
                         "properties": {
                             "date": {
                                 "type": "string",
-                                "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', or exact YYYY-MM-DD.",
+                                "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
                             },
                             "time": {
                                 "type": "string",
@@ -150,7 +150,7 @@ def function_tools(sales_level):
                             },
                             "date": {
                                 "type": "string",
-                                "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', or exact YYYY-MM-DD.",
+                                "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
                             },
                             "time": {
                                 "type": "string",
@@ -223,7 +223,7 @@ def function_tools(sales_level):
                         "properties": {
                             "reservation_date": {
                                 "type": "string",
-                                "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', or exact YYYY-MM-DD.",
+                                "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
                             },
                             "reservation_time": {
                                 "type": "string",

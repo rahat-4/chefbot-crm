@@ -1,3 +1,5 @@
+from datetime import date
+
 import dateparser
 import pytz
 from datetime import datetime
@@ -25,10 +27,10 @@ def get_timezone_from_country_city(country: str, city: str) -> str:
     return None
 
 
-def parse_reservation_date(user_input: str, restaurant_timezone: str) -> datetime:
+def parse_reservation_date(user_input: str, restaurant_timezone: str) -> date:
     """
     Parse a natural language date like 'tomorrow', 'next Friday', 'today'
-    based on the restaurant's timezone and return in UTC for storage.
+    based on the restaurant's timezone and return only the date portion.
     """
     local_dt = dateparser.parse(
         user_input,
@@ -42,8 +44,8 @@ def parse_reservation_date(user_input: str, restaurant_timezone: str) -> datetim
     if not local_dt:
         raise ValueError(f"Could not parse date from: {user_input}")
 
-    # Convert to UTC for DB
-    return local_dt.astimezone(pytz.UTC)
+    # Return only the date portion (no time)
+    return local_dt.date()
 
 
 def convert_utc_to_restaurant_timezone(
