@@ -29,6 +29,7 @@ from .utils import (
     get_restaurant_media_path_prefix,
     get_client_media_path_prefix,
     generate_reservation_code,
+    validate_ingredients,
 )
 
 
@@ -44,7 +45,12 @@ class Menu(BaseModel):
     )
     description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    ingredients = ArrayField(models.CharField(max_length=255), blank=True, null=True)
+    ingredients = models.JSONField(
+        default=dict,
+        blank=True,
+        validators=[validate_ingredients],
+        help_text='Ingredients with quantities, e.g., {"milk": "500ml", "onion": "200g"}',
+    )
     category = models.CharField(
         max_length=30, choices=CategoryChoices.choices, default=CategoryChoices.STARTERS
     )
@@ -81,6 +87,24 @@ class Menu(BaseModel):
 
         unique_together = ["organization", "name"]
 
+    def get_formatted_ingredients_for_ai(self):
+        """Convert ingredients dict to formatted list for AI processing"""
+        if not self.ingredients:
+            return []
+
+        formatted_ingredients = []
+        for ingredient, quantity in self.ingredients.items():
+            formatted_ingredients.append(f"{ingredient} ({quantity})")
+
+        return formatted_ingredients
+
+    def clean(self):
+        super().clean()
+
+        # Max of 5 recommended combinations
+        if self.recommended_combinations.count() > 5:
+            raise ValidationError("Cannot have more than 5 recommended combinations.")
+
     def __str__(self):
         return f"{self.organization.name} - {self.name}"
 
@@ -88,9 +112,11 @@ class Menu(BaseModel):
 class SalesLevel(BaseModel):
     """Sales level configuration for chatbot selling aggressiveness."""
 
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="sales_levels"
+    )
     name = models.CharField(
         max_length=255,
-        unique=True,
         help_text="Name of the sales level configuration.",
     )
     level = models.PositiveSmallIntegerField(
@@ -99,23 +125,42 @@ class SalesLevel(BaseModel):
         help_text="Sales aggressiveness level (1-5)",
     )
     personalization_enabled = models.BooleanField(
-        default=False, help_text="Enable personalized recommendations for (Level 4+)."
+        default=False, help_text="Enable personalized recommendations (Level 4+)."
+    )
+    # Menu reward for Level 2+
+    menu_reward = models.ForeignKey(
+        "Reward",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sales_levels",
+        help_text="Menu reward for level 2+",
     )
 
     class Meta:
         verbose_name = "Sales Level Configuration"
         verbose_name_plural = "Sales Level Configurations"
+        unique_together = ["organization", "level"]
 
     def __str__(self):
-        return f"Level {self.level} - Name: {self.name}"
+        return f"Level {self.level} - {self.name} ({self.organization.name})"
 
     def clean(self):
+        super().clean()
 
-        if self.level == 2:
-            if not self.menu_reward_type:
-                raise ValidationError("Menu reward type is required for level 2.")
-            if not self.menu_reward_label:
-                raise ValidationError("Menu reward label is required for level 2.")
+        # Level 2+ requires menu reward
+        if self.level >= 2 and not self.menu_reward:
+            raise ValidationError("Menu reward is required for level 2 and above.")
+
+        # Level 1 shouldn't have menu reward
+        if self.level == 1 and self.menu_reward:
+            raise ValidationError("Level 1 should not have a menu reward.")
+
+        # Personalization only for level 4+
+        if self.personalization_enabled and self.level < 4:
+            raise ValidationError(
+                "Personalization can only be enabled for level 4 and above."
+            )
 
 
 class Reward(BaseModel):
@@ -123,14 +168,15 @@ class Reward(BaseModel):
         max_length=20, choices=RewardType.choices, help_text="Type of the reward."
     )
     label = models.CharField(
-        max_length=255, help_text="Label for the reward (e.g., 'Free Drink')."
+        max_length=100,  # Max 100 chars as per requirements
+        help_text="Label for the reward (e.g., 'Free tiramisu for pre-ordered menu').",
     )
-    custom_reward = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        help_text="Custom reward description (if applicable).",
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="rewards"
     )
+
+    def __str__(self):
+        return f"{self.get_type_display()}: {self.label}"
 
     def __str__(self):
         return f"UID: {self.uid} | Type: {self.type}"

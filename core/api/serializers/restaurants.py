@@ -1,5 +1,7 @@
 import logging
+import re
 
+from django.conf import settings
 from django.db import transaction
 
 from rest_framework import serializers
@@ -25,6 +27,8 @@ from apps.restaurant.models import (
     PromotionTrigger,
     RestaurantTable,
 )
+
+from openai import OpenAI
 
 
 logger = logging.getLogger(__name__)
@@ -117,10 +121,25 @@ class RestaurantTableSerializer(serializers.ModelSerializer):
 
 class RestaurantMenuSerializer(serializers.ModelSerializer):
     recommended_combinations = serializers.SlugRelatedField(
-        queryset=Menu.objects.filter(),
+        queryset=Menu.objects.none(),
         many=True,
         slug_field="uid",
+        required=False,
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set queryset based on context
+        restaurant = self._get_restaurant_from_context()
+        if restaurant:
+            queryset = Menu.objects.filter(
+                organization=restaurant,
+            )
+            # Exclude self when updating
+            if self.instance:
+                queryset = queryset.exclude(pk=self.instance.pk)
+
+            self.fields["recommended_combinations"].queryset = queryset
 
     class Meta:
         model = Menu
@@ -139,23 +158,42 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
             "enable_upselling",
             "recommended_combinations",
         ]
-
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     restaurant = self._get_restaurant_from_context()
-    #     if restaurant:
-    #         self.fields["recommended_combinations"].queryset = Menu.objects.filter(
-    #             organization=restaurant
-    #         )
+        read_only_fields = ["allergens", "macronutrients"]  # AI-generated fields
 
     def _get_restaurant_from_context(self):
+        """Get restaurant from context or view kwargs"""
         view = self.context.get("view")
         if not view:
             return None
         restaurant_uid = view.kwargs.get("restaurant_uid")
-        return Organization.objects.filter(uid=restaurant_uid).first()
+        if restaurant_uid:
+            return Organization.objects.filter(uid=restaurant_uid).first()
+        return None
+
+    def validate_ingredients(self, value):
+        """Validate ingredients format and quantities"""
+        if not value:
+            return value
+
+        # Pattern to match quantity with unit
+        quantity_pattern = r"^[0-9]*\.?[0-9]+[a-zA-Z]+$"
+
+        for ingredient, quantity in value.items():
+            if not ingredient.strip():
+                raise serializers.ValidationError("Ingredient name cannot be empty.")
+            if not quantity.strip():
+                raise serializers.ValidationError(
+                    "Ingredient quantity cannot be empty."
+                )
+            if not re.match(quantity_pattern, quantity.strip()):
+                raise serializers.ValidationError(
+                    f"Invalid quantity format for '{ingredient}'. "
+                    "Use format like '500g', '2cups', '1.5kg', '250ml'"
+                )
+        return value
 
     def validate(self, attrs):
+        """Validate menu data"""
         errors = {}
         restaurant = self._get_restaurant_from_context()
         name = attrs.get("name")
@@ -163,7 +201,7 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
         if not restaurant:
             errors["restaurant"] = ["Invalid restaurant."]
         else:
-            # Exclude current instance when updating
+            # Check for duplicate menu names in the same restaurant
             queryset = Menu.objects.filter(organization=restaurant, name=name)
             if self.instance:
                 queryset = queryset.exclude(pk=self.instance.pk)
@@ -179,26 +217,66 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
         return attrs
 
     def to_representation(self, instance):
+        """Customize output representation"""
         representation = super().to_representation(instance)
+
+        # Show recommended combinations as names instead of UIDs
         representation["recommended_combinations"] = [
-            menu.name for menu in instance.recommended_combinations.all()
+            {"uid": menu.uid, "name": menu.name}
+            for menu in instance.recommended_combinations.all()
         ]
+
         return representation
 
     def _auto_generate_nutrition_info(self, validated_data):
-        ingredients = validated_data.get("ingredients", [])
+        """Generate nutrition info based on ingredients with quantities"""
+        ingredients = validated_data.get("ingredients", {})
+
         if ingredients:
-            response = generate_nutrition_info(ingredients)
-            validated_data["allergens"] = response.get("allergens", [])
-            validated_data["macronutrients"] = response.get("macronutrients", {})
+            # Convert ingredients dict to formatted list for AI
+            formatted_ingredients = []
+            for ingredient, quantity in ingredients.items():
+                formatted_ingredients.append(f"{ingredient} ({quantity})")
+
+            print(f"Generating nutrition info for: {formatted_ingredients}")  # Debug
+
+            chatbot = self._get_restaurant_from_context().whatsapp_bots
+            openai_key = decrypt_data(chatbot.openai_key, settings.CRYPTO_PASSWORD)
+            openai_client = OpenAI(api_key=openai_key)
+
+            # Call the AI function with formatted ingredients
+            response = generate_nutrition_info(formatted_ingredients, openai_client)
+
+            print("==============================", response)
+
+            if "error" not in response:
+                validated_data["allergens"] = response.get("allergens", [])
+                validated_data["macronutrients"] = response.get("macronutrients", {})
+            else:
+                print(f"Nutrition generation error: {response['error']}")
+                # Keep existing values or set empty defaults
+                validated_data["allergens"] = validated_data.get("allergens", [])
+                validated_data["macronutrients"] = validated_data.get(
+                    "macronutrients", {}
+                )
+
         return validated_data
 
     def create(self, validated_data):
+        """Create menu with auto-generated nutrition info"""
+        restaurant = self._get_restaurant_from_context()
+        if restaurant:
+            validated_data["organization"] = restaurant
+
         validated_data = self._auto_generate_nutrition_info(validated_data)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        validated_data = self._auto_generate_nutrition_info(validated_data)
+        """Update menu with auto-generated nutrition info"""
+        # Only regenerate nutrition if ingredients changed
+        if "ingredients" in validated_data:
+            validated_data = self._auto_generate_nutrition_info(validated_data)
+
         return super().update(instance, validated_data)
 
 
