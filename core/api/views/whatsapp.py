@@ -5,7 +5,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from rest_framework.generics import ListCreateAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 
 from apps.openAI.utils import cancel_active_runs, process_assistant_run
 from apps.organization.models import Organization, OrganizationUser, WhatsappBot
@@ -15,7 +15,10 @@ from common.crypto import decrypt_data
 from common.whatsapp import send_whatsapp_reply
 
 
-from ..serializers.whatsapp import RestaurantWhatsAppSerializer
+from ..serializers.whatsapp import (
+    RestaurantWhatsAppSerializer,
+    RestaurantWhatsAppDetailSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -133,3 +136,12 @@ class RestaurantWhatsAppListView(ListCreateAPIView):
     def get_queryset(self):
         organizations = Organization.objects.for_user(self.request.user).restaurants()
         return self.queryset.filter(organization__in=organizations)
+
+
+class RestaurantWhatsAppDetailView(RetrieveUpdateDestroyAPIView):
+    queryset = WhatsappBot.objects.all()
+    serializer_class = RestaurantWhatsAppDetailSerializer
+
+    def get_object(self):
+        whatsapp_bot_uid = self.kwargs["whatsapp_bot_uid"]
+        return self.queryset.get(uid=whatsapp_bot_uid)

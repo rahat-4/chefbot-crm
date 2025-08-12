@@ -6,12 +6,21 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from apps.restaurant.choices import RewardType
+
 from apps.openAI.gpt_assistants import create_assistant
 from apps.openAI.tools import function_tools
 from apps.openAI.instructions import restaurant_assistant_instruction
 from apps.organization.models import Organization, WhatsappBot
+from apps.restaurant.models import Reward
 
 from common.crypto import encrypt_data, hash_key
+
+
+class RewardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reward
+        fields = ["uid", "type", "label"]
 
 
 class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
@@ -34,6 +43,26 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
         ]
 
         read_only_fields = ["uid", "sales_level", "assistant_id"]
+
+    def to_representation(self, instance):
+        """Override to show only encrypted data (not salt) in API response"""
+        data = super().to_representation(instance)
+
+        # Fields that contain encrypted data with salt
+        encrypted_fields = [
+            "openai_key",
+            "assistant_id",
+            "twilio_sid",
+            "twilio_auth_token",
+        ]
+
+        for field in encrypted_fields:
+            field_value = data.get(field)
+            if isinstance(field_value, dict) and "data" in field_value:
+                # Show only the encrypted data part in response
+                data[field] = field_value["data"]
+
+        return data
 
     def get_organization(self, obj):
         return obj.organization.name
@@ -91,3 +120,113 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
             validated_data["sales_level"] = 1
 
             return super().create(validated_data)
+
+
+class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
+    organization = serializers.SerializerMethodField()
+
+    class Meta:
+        model = WhatsappBot
+        fields = [
+            "uid",
+            "chatbot_name",
+            "sales_level",
+            "openai_key",
+            "assistant_id",
+            "twilio_sid",
+            "twilio_auth_token",
+            "twilio_number",
+            "organization",
+        ]
+        read_only_fields = [
+            "uid",
+            "openai_key",
+            "assistant_id",
+            "twilio_sid",
+            "twilio_auth_token",
+            "twilio_number",
+            "organization",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Get the instance to check sales_level
+        instance = kwargs.get("instance")
+
+        # For updates (PUT/PATCH), add reward field for writing
+        if self.context.get("request") and self.context["request"].method in [
+            "PUT",
+            "PATCH",
+        ]:
+            request_data = self.context["request"].data
+            sales_level = request_data.get("sales_level")
+
+            # If sales_level is 2 or instance already has sales_level 2, include reward field
+            if sales_level == 2 or (instance and instance.sales_level == 2):
+                self.fields["reward"] = RewardSerializer(write_only=True)
+
+        # For GET requests, add reward field for reading
+        if self.context.get("request") and self.context["request"].method in ["GET"]:
+            # For GET requests, check instance sales_level (not request data)
+            if instance and instance.sales_level == 2:
+                self.fields["reward"] = RewardSerializer(read_only=True)
+
+    def validate(self, attrs):
+        errors = {}
+
+        # Check if sales_level is 2 but reward is missing or empty
+        if attrs.get("sales_level") == 2 and not attrs.get("reward"):
+            errors["reward"] = ["This field is required when sales_level is 2."]
+
+        # If there are errors, raise ValidationError
+        if errors:
+            raise ValidationError(errors)
+
+        return attrs
+
+    def get_organization(self, obj):
+        return obj.organization.name
+
+    def to_representation(self, instance):
+        """Override to show only encrypted data (not salt) in API response"""
+        data = super().to_representation(instance)
+
+        # Fields that contain encrypted data with salt
+        encrypted_fields = [
+            "openai_key",
+            "assistant_id",
+            "twilio_sid",
+            "twilio_auth_token",
+        ]
+
+        for field in encrypted_fields:
+            field_value = data.get(field)
+            if isinstance(field_value, dict) and "data" in field_value:
+                # Show only the encrypted data part in response
+                data[field] = field_value["data"]
+
+        # Add reward data for GET requests when sales_level is 2
+        if instance.sales_level == 2:
+            try:
+                reward = Reward.objects.get(organization=instance.organization)
+                data["reward"] = RewardSerializer(reward).data
+            except Reward.DoesNotExist:
+                data["reward"] = None
+
+        return data
+
+    def update(self, instance, validated_data):
+        """Custom update method to handle reward when sales_level changes"""
+        reward_data = validated_data.pop("reward", None)
+
+        # Update the instance
+        instance = super().update(instance, validated_data)
+
+        # Handle reward based on sales_level
+        if instance.sales_level == 2 and reward_data is not None:
+            # Delete existing reward and create new one
+            Reward.objects.filter(organization=instance.organization).delete()
+            Reward.objects.create(organization=instance.organization, **reward_data)
+
+        return instance
