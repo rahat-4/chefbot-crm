@@ -6,6 +6,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 from common.models import BaseModel
 
 from .choices import OrganizationStatus, OrganizationType, DaysOfWeek
+from .managers import OrganizationQuerySet
 from .utils import get_organization_media_path_prefix
 
 User = get_user_model()
@@ -45,6 +46,8 @@ class Organization(BaseModel):
     city = models.CharField(max_length=255)
     street = models.CharField(max_length=255)
     zip_code = models.CharField(max_length=255)
+
+    objects = OrganizationQuerySet.as_manager()
 
     def save(self, *args, **kwargs):
         if self.email:

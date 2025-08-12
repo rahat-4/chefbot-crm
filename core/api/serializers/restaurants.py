@@ -131,13 +131,13 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
         # Set queryset based on context
         restaurant = self._get_restaurant_from_context()
-        if restaurant:
+        if restaurant and self.context.get("request").method == ["PUT", "PATCH"]:
             queryset = Menu.objects.filter(
                 organization=restaurant,
             )
             # Exclude self when updating
             if self.instance:
-                queryset = queryset.exclude(pk=self.instance.pk)
+                queryset = queryset.exclude(uid=self.instance.uid)
 
             self.fields["recommended_combinations"].queryset = queryset
 
@@ -369,7 +369,6 @@ class RewardSerializer(serializers.ModelSerializer):
             "uid",
             "type",
             "label",
-            "custom_reward",
         ]
 
 

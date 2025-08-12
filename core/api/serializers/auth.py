@@ -6,14 +6,27 @@ from rest_framework import serializers
 
 from apps.authentication.models import RegistrationSession
 from apps.authentication.choices import UserType
+from apps.organization.models import Organization
 
 User = get_user_model()
 
 
+class OrganizationSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ["uid", "name"]
+
+
 class MeSerializer(serializers.ModelSerializer):
+    organizations = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ["uid", "avatar", "first_name", "last_name", "email"]
+        fields = ["uid", "avatar", "first_name", "last_name", "email", "organizations"]
+
+    def get_organizations(self, obj):
+        organizations = Organization.objects.for_user(obj).restaurants()
+        return OrganizationSummarySerializer(organizations, many=True).data
 
     # def __init__(self, *args, **kwargs):
     #     super().__init__(*args, **kwargs)
