@@ -98,13 +98,6 @@ class Menu(BaseModel):
 
         return formatted_ingredients
 
-    def clean(self):
-        super().clean()
-
-        # Max of 5 recommended combinations
-        if self.recommended_combinations.count() > 5:
-            raise ValidationError("Cannot have more than 5 recommended combinations.")
-
     def __str__(self):
         return f"{self.organization.name} - {self.name}"
 

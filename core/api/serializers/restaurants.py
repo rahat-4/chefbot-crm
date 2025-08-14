@@ -159,25 +159,11 @@ class RestaurantTableSerializer(serializers.ModelSerializer):
 
 class RestaurantMenuSerializer(serializers.ModelSerializer):
     recommended_combinations = serializers.SlugRelatedField(
-        queryset=Menu.objects.none(),
+        queryset=Menu.objects.all(),
         many=True,
         slug_field="uid",
         required=False,
     )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Set queryset based on context
-        restaurant = self._get_restaurant_from_context()
-        if restaurant and self.context.get("request").method == ["PUT", "PATCH"]:
-            queryset = Menu.objects.filter(
-                organization=restaurant,
-            )
-            # Exclude self when updating
-            if self.instance:
-                queryset = queryset.exclude(uid=self.instance.uid)
-
-            self.fields["recommended_combinations"].queryset = queryset
 
     class Meta:
         model = Menu
@@ -207,6 +193,13 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
         if restaurant_uid:
             return Organization.objects.filter(uid=restaurant_uid).first()
         return None
+
+    def validate_recommended_combinations(self, value):
+        if value and len(value) > 5:
+            raise serializers.ValidationError(
+                "You can select a maximum of 5 recommended combinations."
+            )
+        return value
 
     def validate_ingredients(self, value):
         """Validate ingredients format and quantities"""

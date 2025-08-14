@@ -54,20 +54,6 @@ def whatsapp_bot(request):
             whatsapp_number=whatsapp_number, organization=bot.organization
         )
 
-        # # Create assistant
-        # from apps.openAI.gpt_assistants import create_assistant
-        # from apps.openAI.instructions import restaurant_assistant_instruction
-        # from apps.openAI.tools import function_tools
-
-        # assistant = create_assistant(
-        #     assistant_name="WhatsApp-based restaurant reservation assistant",
-        #     instructions=restaurant_assistant_instruction(bot.organization.name),
-        #     tools=function_tools(1),
-        # )
-
-        # logger.info(f"Created assistant: {assistant}")
-        # logger.info(f"Created customer: {assistant.id}")
-
         # Create thread for new customers
         if created or not customer.thread_id:
             thread = openai_client.beta.threads.create()
@@ -83,11 +69,6 @@ def whatsapp_bot(request):
             thread_id=customer.thread_id, role="user", content=incoming_message
         )
 
-        # from apps.openAI.tools import function_tools
-        # from apps.openAI.instructions import restaurant_assistant_instruction
-
-        # tools = function_tools(1)
-        # instructions = restaurant_assistant_instruction(bot.organization.name)
         # Create and process run
         run = openai_client.beta.threads.runs.create(
             thread_id=customer.thread_id,

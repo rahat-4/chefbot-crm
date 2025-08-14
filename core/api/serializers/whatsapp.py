@@ -2,19 +2,23 @@ from decouple import config
 from openai import OpenAI
 
 from django.db import transaction
+from django.conf import settings
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from apps.restaurant.choices import RewardType
 
-from apps.openAI.gpt_assistants import create_assistant
+from apps.openAI.gpt_assistants import create_assistant, update_assistant
 from apps.openAI.tools import function_tools
-from apps.openAI.instructions import restaurant_assistant_instruction
+from apps.openAI.instructions import (
+    sales_level_one_assistant_instruction,
+    sales_level_two_assistant_instruction,
+)
 from apps.organization.models import Organization, WhatsappBot
 from apps.restaurant.models import Reward
 
-from common.crypto import encrypt_data, hash_key
+from common.crypto import decrypt_data, encrypt_data, hash_key
 
 
 class RewardSerializer(serializers.ModelSerializer):
@@ -26,6 +30,7 @@ class RewardSerializer(serializers.ModelSerializer):
 class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
     organization = serializers.SerializerMethodField()
     organization_uid = serializers.CharField(write_only=True)
+    webhook_url = serializers.SerializerMethodField()
 
     class Meta:
         model = WhatsappBot
@@ -40,6 +45,7 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
             "twilio_number",
             "organization",
             "organization_uid",
+            "webhook_url",
         ]
 
         read_only_fields = ["uid", "sales_level", "assistant_id"]
@@ -63,6 +69,9 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
                 data[field] = field_value["data"]
 
         return data
+
+    def get_webhook_url(self, obj):
+        return settings.WEBHOOK_URL
 
     def get_organization(self, obj):
         return obj.organization.name
@@ -90,16 +99,27 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
             client = OpenAI(api_key=validated_data["openai_key"])
 
             tools = function_tools(1)
-            instructions = restaurant_assistant_instruction(
+            instructions = sales_level_one_assistant_instruction(
                 validated_data["organization"].name
             )
 
             assistant = create_assistant(
                 client,
-                "WhatsApp-based restaurant reservation assistant",
+                f"{validated_data['organization'].name} whatsapp reservation assistant",
                 instructions,
                 tools,
             )
+
+            print("==========================", assistant.id)
+
+            # tt = update_assistant(
+            #     client=client,
+            #     assistant_id="asst_T0a0NjZRF4kkiv4EBxYDBUF7",
+            #     assistant_name=f"{validated_data['organization'].name} whatsapp reservation assistant",
+            #     instructions=instructions,
+            #     tools=tools,
+            # )
+            # print("==================================", tt)
 
             crypto_password = config("CRYPTO_PASSWORD")
 
@@ -124,6 +144,7 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
 
 class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
     organization = serializers.SerializerMethodField()
+    webhook_url = serializers.SerializerMethodField()
 
     class Meta:
         model = WhatsappBot
@@ -137,6 +158,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             "twilio_auth_token",
             "twilio_number",
             "organization",
+            "webhook_url",
         ]
         read_only_fields = [
             "uid",
@@ -146,6 +168,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             "twilio_auth_token",
             "twilio_number",
             "organization",
+            "webhook_url",
         ]
 
     def __init__(self, *args, **kwargs):
@@ -171,6 +194,9 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             # For GET requests, check instance sales_level (not request data)
             if instance and instance.sales_level == 2:
                 self.fields["reward"] = RewardSerializer(read_only=True)
+
+    def get_webhook_url(self, obj):
+        return settings.WEBHOOK_URL
 
     def validate(self, attrs):
         errors = {}
@@ -223,10 +249,50 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         # Update the instance
         instance = super().update(instance, validated_data)
 
+        # Assistant update
+        openai_key = decrypt_data(
+            instance.openai_key,
+            settings.CRYPTO_PASSWORD,
+        )
+        assistant_id = decrypt_data(
+            instance.assistant_id,
+            settings.CRYPTO_PASSWORD,
+        )
+        client = OpenAI(api_key=openai_key)
+
+        if instance.sales_level == 1:
+            tools = function_tools(1)
+            instructions = sales_level_one_assistant_instruction(
+                instance.organization.name
+            )
+
+            tt = update_assistant(
+                client=client,
+                assistant_id=assistant_id,
+                assistant_name=f"{instance.organization.name} whatsapp reservation assistant",
+                instructions=instructions,
+                tools=tools,
+            )
+
         # Handle reward based on sales_level
-        if instance.sales_level == 2 and reward_data is not None:
+        elif instance.sales_level == 2 and reward_data is not None:
             # Delete existing reward and create new one
             Reward.objects.filter(organization=instance.organization).delete()
-            Reward.objects.create(organization=instance.organization, **reward_data)
+            existing_reward = Reward.objects.create(
+                organization=instance.organization, **reward_data
+            )
+
+            tools = function_tools(1)
+            instructions = sales_level_two_assistant_instruction(
+                instance.organization.name, existing_reward.type, existing_reward.label
+            )
+
+            tt = update_assistant(
+                client=client,
+                assistant_id=assistant_id,
+                assistant_name=f"{instance.organization.name} whatsapp reservation assistant",
+                instructions=instructions,
+                tools=tools,
+            )
 
         return instance
