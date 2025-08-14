@@ -5,7 +5,12 @@ from phonenumber_field.modelfields import PhoneNumberField
 
 from common.models import BaseModel
 
-from .choices import OrganizationStatus, OrganizationType, DaysOfWeek
+from .choices import (
+    OrganizationStatus,
+    OrganizationType,
+    DaysOfWeek,
+    OpeningHoursStatus,
+)
 from .managers import OrganizationQuerySet
 from .utils import get_organization_media_path_prefix
 
@@ -81,7 +86,11 @@ class OpeningHours(BaseModel):
     day = models.CharField(max_length=20, choices=DaysOfWeek.choices)
     open_time = models.TimeField(blank=True, null=True)
     close_time = models.TimeField(blank=True, null=True)
-    is_closed = models.BooleanField(default=False)
+    status = models.CharField(
+        max_length=20,
+        choices=OpeningHoursStatus.choices,
+        default=OpeningHoursStatus.OPEN,
+    )
 
     def __str__(self):
         return f"Restaurant: {self.organization.name} - {self.day}: {self.open_time} - {self.close_time}"

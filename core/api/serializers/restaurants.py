@@ -1,5 +1,7 @@
 import logging
 import re
+from collections import defaultdict
+from operator import itemgetter
 
 from django.conf import settings
 from django.db import transaction
@@ -42,8 +44,6 @@ class OpeningHoursSerializer(serializers.ModelSerializer):
 
 
 class RestaurantSerializer(serializers.ModelSerializer):
-    opening_hours = OpeningHoursSerializer(many=True)
-
     class Meta:
         model = Organization
         fields = [
@@ -61,6 +61,44 @@ class RestaurantSerializer(serializers.ModelSerializer):
             "zip_code",
             "opening_hours",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        request = self.context.get("request", None)
+        method = request.method if request else None
+
+        if method in ["POST", "PUT", "PATCH"]:
+            # Use write serializer for POST/PUT/PATCH
+            self.fields["opening_hours"] = OpeningHoursSerializer(
+                many=True, write_only=True
+            )
+        else:
+            # Use read serializer (grouped by day) for GET
+            self.fields["opening_hours"] = serializers.SerializerMethodField(
+                read_only=True
+            )
+
+    def to_representation(self, instance):
+        # Default DRF representation
+        rep = super().to_representation(instance)
+
+        # Ensure opening_hours is included even on POST/PUT
+        if "opening_hours" not in rep:
+            rep["opening_hours"] = self.get_opening_hours(instance)
+
+        return rep
+
+    def get_opening_hours(self, obj):
+        qs = obj.opening_hours.order_by("day", "open_time")
+        serialized = OpeningHoursSerializer(qs, many=True).data
+
+        grouped = defaultdict(list)
+        for item in serialized:
+            day = item.pop("day")
+            grouped[day].append(item)
+
+        return grouped
 
     def validate(self, attrs):
         errors = {}
