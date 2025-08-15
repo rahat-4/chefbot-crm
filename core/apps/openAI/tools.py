@@ -219,7 +219,7 @@ def function_tools(sales_level):
                     "description": "Cancel a reservation using reservation date (and optionally reservation time). Accept natural expressions like 'today', 'tomorrow', or 'next Saturday'.",
                     "parameters": {
                         "type": "object",
-                        "required": ["reservation_date", "cancellation_reason"],
+                        "required": ["reservation_date"],
                         "properties": {
                             "reservation_date": {
                                 "type": "string",
@@ -229,11 +229,6 @@ def function_tools(sales_level):
                                 "type": "string",
                                 "pattern": "^\\d{2}:\\d{2}$",
                                 "description": "Time of reservation (only needed if multiple bookings on same date).",
-                            },
-                            "cancellation_reason": {
-                                "type": "string",
-                                "minLength": 1,
-                                "description": "Reason for cancellation.",
                             },
                         },
                         "additionalProperties": False,

@@ -1,7 +1,6 @@
 import logging
 import re
 from collections import defaultdict
-from operator import itemgetter
 
 from django.conf import settings
 from django.db import transaction
@@ -21,13 +20,14 @@ from apps.organization.models import (
     OpeningHours,
     WhatsappBot,
 )
-from apps.restaurant.choices import CategoryChoices, ClassificationChoices
 from apps.restaurant.models import (
+    Client,
     Menu,
     Reward,
     Promotion,
     PromotionTrigger,
     RestaurantTable,
+    Reservation,
 )
 
 from openai import OpenAI
@@ -44,6 +44,8 @@ class OpeningHoursSerializer(serializers.ModelSerializer):
 
 
 class RestaurantSerializer(serializers.ModelSerializer):
+    opening_hours = OpeningHoursSerializer(many=True, required=False)
+
     class Meta:
         model = Organization
         fields = [
@@ -61,44 +63,6 @@ class RestaurantSerializer(serializers.ModelSerializer):
             "zip_code",
             "opening_hours",
         ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        request = self.context.get("request", None)
-        method = request.method if request else None
-
-        if method in ["POST", "PUT", "PATCH"]:
-            # Use write serializer for POST/PUT/PATCH
-            self.fields["opening_hours"] = OpeningHoursSerializer(
-                many=True, write_only=True
-            )
-        else:
-            # Use read serializer (grouped by day) for GET
-            self.fields["opening_hours"] = serializers.SerializerMethodField(
-                read_only=True
-            )
-
-    def to_representation(self, instance):
-        # Default DRF representation
-        rep = super().to_representation(instance)
-
-        # Ensure opening_hours is included even on POST/PUT
-        if "opening_hours" not in rep:
-            rep["opening_hours"] = self.get_opening_hours(instance)
-
-        return rep
-
-    def get_opening_hours(self, obj):
-        qs = obj.opening_hours.order_by("day", "open_time")
-        serialized = OpeningHoursSerializer(qs, many=True).data
-
-        grouped = defaultdict(list)
-        for item in serialized:
-            day = item.pop("day")
-            grouped[day].append(item)
-
-        return grouped
 
     def validate(self, attrs):
         errors = {}
@@ -271,14 +235,10 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
 
             print(f"Generating nutrition info for: {formatted_ingredients}")  # Debug
 
-            chatbot = self._get_restaurant_from_context().whatsapp_bots
-            openai_key = decrypt_data(chatbot.openai_key, settings.CRYPTO_PASSWORD)
-            openai_client = OpenAI(api_key=openai_key)
+            openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
             # Call the AI function with formatted ingredients
             response = generate_nutrition_info(formatted_ingredients, openai_client)
-
-            print("==============================", response)
 
             if "error" not in response:
                 validated_data["allergens"] = response.get("allergens", [])
@@ -352,19 +312,6 @@ class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        # from apps.openAI.gpt_assistants import create_assistant, update_assistant
-        # from apps.openAI.tools import function_tools
-        # from apps.openAI.instructions import restaurant_assistant_instruction
-
-        # tools = function_tools(validated_data["sales_level"])
-        # instructions = restaurant_assistant_instruction(self.organization.name)
-
-        # update_assistant(
-        #     "asst_cLKgpXm4mQMRCmVnzUoi95Yc",
-        #     "WhatsApp-based restaurant reservation assistant",
-        #     instructions,
-        #     tools,
-        # )
         crypto_password = config("CRYPTO_PASSWORD")
 
         validated_data["hashed_key"] = hash_key(validated_data["twilio_sid"])
@@ -442,3 +389,28 @@ class RestaurantPromotionSerializer(serializers.ModelSerializer):
                 **validated_data, reward=reward, trigger=trigger
             )
             return promotion
+
+
+class RestaurantClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Client
+        fields = [
+            "uid",
+            "name",
+            "email",
+            "phone_number",
+            "number_of_people",
+            "date",
+            "time",
+            "notes",
+        ]
+
+
+class RestaurantReservationSerializer(serializers.ModelSerializer):
+    client = serializers.SlugRelatedField(
+        slug_field="uid", queryset=Client.objects.all()
+    )
+
+    class Meta:
+        model = Reservation
+        fields = ["uid", "client", ""]

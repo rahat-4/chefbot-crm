@@ -9,7 +9,6 @@ from .choices import (
     OrganizationStatus,
     OrganizationType,
     DaysOfWeek,
-    OpeningHoursStatus,
 )
 from .managers import OrganizationQuerySet
 from .utils import get_organization_media_path_prefix
@@ -84,16 +83,14 @@ class OpeningHours(BaseModel):
         Organization, on_delete=models.CASCADE, related_name="opening_hours"
     )
     day = models.CharField(max_length=20, choices=DaysOfWeek.choices)
-    open_time = models.TimeField(blank=True, null=True)
-    close_time = models.TimeField(blank=True, null=True)
-    status = models.CharField(
-        max_length=20,
-        choices=OpeningHoursStatus.choices,
-        default=OpeningHoursStatus.OPEN,
-    )
+    opening_start_time = models.TimeField(blank=True, null=True)
+    opening_end_time = models.TimeField(blank=True, null=True)
+    break_start_time = models.TimeField(blank=True, null=True)
+    break_end_time = models.TimeField(blank=True, null=True)
+    is_closed = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Restaurant: {self.organization.name} - {self.day}: {self.open_time} - {self.close_time}"
+        return f"Restaurant: {self.organization.name} - {self.day}: Closed: {self.is_closed}"
 
 
 class WhatsappBot(BaseModel):

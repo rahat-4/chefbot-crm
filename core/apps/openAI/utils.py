@@ -562,7 +562,6 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
             return {
                 "status": "success",
                 "reservation_uid": str(reservation.uid),
-                "reservation_code": reservation.reservation_code,
                 "table_name": selected_table.name,
                 "table_category": selected_table.category,
                 "table_position": selected_table.position or "Standard seating",

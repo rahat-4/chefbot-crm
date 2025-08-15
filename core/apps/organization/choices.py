@@ -24,9 +24,3 @@ class DaysOfWeek(models.TextChoices):
 
     def __str__(self):
         return self.label
-
-
-class OpeningHoursStatus(models.TextChoices):
-    OPEN = "OPEN", "Open"
-    BREAK = "BREAK", "Break"
-    CLOSED = "CLOSED", "Closed"

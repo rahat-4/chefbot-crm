@@ -28,7 +28,6 @@ from .choices import (
 from .utils import (
     get_restaurant_media_path_prefix,
     get_client_media_path_prefix,
-    generate_reservation_code,
     validate_ingredients,
 )
 
@@ -307,7 +306,6 @@ class Reservation(BaseModel):
     client = models.ForeignKey(
         Client, on_delete=models.CASCADE, related_name="reservations"
     )
-    reservation_code = models.CharField(max_length=10, unique=True, db_index=True)
     reservation_name = models.CharField(max_length=255, blank=True, null=True)
     reservation_phone = models.CharField(max_length=100, blank=True, null=True)
     reservation_date = models.DateField()
@@ -345,7 +343,6 @@ class Reservation(BaseModel):
         verbose_name_plural = "Reservations"
 
     def save(self, *args, **kwargs):
-        self.reservation_code = generate_reservation_code(self)
         if self.cancelled_by == ReservationStatus.CANCELLED:
             if not self.cancellation_reason:
                 raise ValidationError(
