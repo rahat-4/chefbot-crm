@@ -24,6 +24,7 @@ from .choices import (
     TableStatus,
     ClientMessageRole,
     ClientSource,
+    RestaurantDocumentType,
 )
 from .utils import (
     get_restaurant_media_path_prefix,
@@ -166,12 +167,17 @@ class Reward(BaseModel):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="rewards"
     )
+    promo_code = models.CharField(max_length=100, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.promo_code:
+            type_part = self.type[:3].upper()
+            digits = f"{random.randint(0, 9999):04d}"
+            self.promo_code = f"{type_part}{digits}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.get_type_display()}: {self.label}"
-
-    def __str__(self):
-        return f"UID: {self.uid} | Type: {self.type}"
 
 
 class PromotionTrigger(BaseModel):
@@ -323,7 +329,6 @@ class Reservation(BaseModel):
         max_length=20,
         blank=True,
         choices=ReservationCancelledBy.choices,
-        default=ReservationCancelledBy.SYSTEM,
     )
     booking_reminder_sent = models.BooleanField(default=False)
     booking_reminder_sent_at = models.TimeField(blank=True, null=True)
@@ -341,13 +346,27 @@ class Reservation(BaseModel):
         verbose_name = "Reservation"
         verbose_name_plural = "Reservations"
 
-    def save(self, *args, **kwargs):
-        if self.cancelled_by == ReservationStatus.CANCELLED:
-            if not self.cancellation_reason:
-                raise ValidationError(
-                    "Cancellation reason is required for cancelled reservations."
-                )
-        super().save(*args, **kwargs)
-
     def __str__(self):
         return f"UID: {self.uid} | Date: {self.reservation_date} | Time: {self.reservation_time}"
+
+
+class RestaurantDocument(BaseModel):
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="documents"
+    )
+    name = models.CharField(max_length=255)
+    document_type = models.CharField(
+        max_length=10,
+        choices=RestaurantDocumentType.choices,
+        default=RestaurantDocumentType.PDF,
+    )
+    file = models.FileField(
+        upload_to="restaurant_documents/", help_text="Upload PDF, DOCX, or image file."
+    )
+
+    class Meta:
+        verbose_name = "Restaurant Document"
+        verbose_name_plural = "Restaurant Documents"
+
+    def __str__(self):
+        return f"{self.name} ({self.document_type})"

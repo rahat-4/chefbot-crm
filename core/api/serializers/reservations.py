@@ -1,0 +1,108 @@
+from rest_framework import serializers
+
+from apps.organization.models import Organization
+
+from apps.restaurant.models import Client, Menu, Reservation, RestaurantTable
+
+
+class ClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Client
+        fields = [
+            "uid",
+            "name",
+            "phone",
+            "whatsapp_number",
+            "email",
+            "source",
+            "date_of_birth",
+            "last_visit",
+            "preferences",
+            "allergens",
+            "special_notes",
+        ]
+
+
+class MenuSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Menu
+        fields = [
+            "uid",
+            "name",
+            "description",
+            "price",
+            "ingredients",
+            "category",
+            "classification",
+        ]
+
+
+class TableSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RestaurantTable
+        fields = ["uid", "name", "capacity", "category", "position", "status"]
+
+
+class ReservationSerializer(serializers.ModelSerializer):
+    client = serializers.SlugRelatedField(
+        queryset=Client.objects.all(), slug_field="uid"
+    )
+    menus = serializers.SlugRelatedField(
+        queryset=Menu.objects.all(),
+        slug_field="uid",
+        many=True,
+        required=False,
+    )
+    table = serializers.SlugRelatedField(
+        queryset=RestaurantTable.objects.all(), slug_field="uid"
+    )
+    organization = serializers.SlugRelatedField(
+        queryset=Organization.objects.all(), slug_field="uid"
+    )
+
+    class Meta:
+        model = Reservation
+        fields = [
+            "uid",
+            "client",
+            "reservation_name",
+            "reservation_phone",
+            "reservation_date",
+            "reservation_time",
+            "reservation_end_time",
+            "reservation_reason",
+            "guests",
+            "notes",
+            "reservation_status",
+            "cancelled_by",
+            "booking_reminder_sent",
+            "booking_reminder_sent_at",
+            "menus",
+            "table",
+            "organization",
+        ]
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        print(rep)
+        rep["client"] = ClientSerializer(instance.client).data
+        rep["menus"] = MenuSerializer(instance.menus.all(), many=True).data
+        rep["table"] = TableSerializer(instance.table).data
+        rep["organization"] = instance.organization.name
+        return rep
+
+    def create(self, validated_data):
+        menus_data = validated_data.pop("menus", [])
+        reservation = Reservation.objects.create(**validated_data)
+        if menus_data:
+            reservation.menus.set(menus_data)
+        return reservation
+
+    def update(self, instance, validated_data):
+        menus_data = validated_data.pop("menus", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if menus_data is not None:
+            instance.menus.set(menus_data)
+        return instance

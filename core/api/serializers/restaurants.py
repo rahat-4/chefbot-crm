@@ -410,7 +410,36 @@ class RestaurantReservationSerializer(serializers.ModelSerializer):
     client = serializers.SlugRelatedField(
         slug_field="uid", queryset=Client.objects.all()
     )
+    menus = serializers.SlugRelatedField(
+        slug_field="uid", queryset=Menu.objects.all(), many=True
+    )
+    table = serializers.SlugRelatedField(
+        slug_field="uid", queryset=RestaurantTable.objects.all()
+    )
 
     class Meta:
         model = Reservation
-        fields = ["uid", "client", ""]
+        fields = [
+            "uid",
+            "client",
+            "reservation_name",
+            "reservation_phone",
+            "reservation_date",
+            "reservation_time",
+            "reservation_end_time",
+            "reservation_reason",
+            "guests",
+            "notes",
+            "reservation_status",
+            "cancelled_by",
+            "booking_reminder_sent",
+            "booking_reminder_sent_at",
+            "menus",
+            "table",
+        ]
+
+    def create(self, validated_data):
+        menus = validated_data.pop("menus", [])
+        reservation = super().create(validated_data)
+        reservation.menus.set(menus)
+        return reservation

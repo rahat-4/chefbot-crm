@@ -18,6 +18,7 @@ from apps.restaurant.models import (
     Reward,
     Promotion,
     PromotionTrigger,
+    Reservation,
 )
 
 from common.permissions import IsAdmin, IsOwner
@@ -30,6 +31,7 @@ from ..serializers.restaurants import (
     RestaurantWhatsAppBotSerializer,
     RestaurantWhatsAppBotUpdateSerializer,
     RestaurantPromotionSerializer,
+    RestaurantReservationSerializer,
 )
 
 
@@ -207,3 +209,13 @@ class RestaurantPromotionListView(ListCreateAPIView):
             organization=self.request.user.organization_users.first().organization
         )
         return super().perform_create(serializer)
+
+
+class RestaurantReservationListView(ListCreateAPIView):
+    queryset = Reservation.objects.all()
+    serializer_class = RestaurantReservationSerializer
+    permission_classes = [IsOwner]
+
+    def get_queryset(self):
+        organization_uid = self.kwargs.get("restaurant_uid")
+        return self.queryset.filter(organization__uid=organization_uid)

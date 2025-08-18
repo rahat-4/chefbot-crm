@@ -73,3 +73,9 @@ class ClientSource(models.TextChoices):
 class ClientMessageRole(models.TextChoices):
     USER = "USER", "User"
     ASSISTANT = "ASSISTANT", "Assistant"
+
+
+class RestaurantDocumentType(models.TextChoices):
+    PDF = "pdf", "PDF"
+    DOCX = "docx", "DOCX"
+    IMAGE = "image", "Image"
