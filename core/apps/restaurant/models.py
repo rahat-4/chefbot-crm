@@ -325,7 +325,6 @@ class Reservation(BaseModel):
         choices=ReservationCancelledBy.choices,
         default=ReservationCancelledBy.SYSTEM,
     )
-    cancellation_reason = models.TextField(blank=True, null=True)
     booking_reminder_sent = models.BooleanField(default=False)
     booking_reminder_sent_at = models.TimeField(blank=True, null=True)
 

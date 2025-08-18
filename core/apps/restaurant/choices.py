@@ -46,6 +46,7 @@ class ReservationStatus(models.TextChoices):
     PLACED = "PLACED", "Placed"
     INPROGRESS = "INPROGRESS", "In-progress"
     COMPLETED = "COMPLETED", "Completed"
+    RESCHEDULED = "RESCHEDULED", "Rescheduled"
     CANCELLED = "CANCELLED", "Cancelled"
     ABSENT = "ABSENT", "Absent"
 

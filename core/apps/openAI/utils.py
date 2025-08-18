@@ -149,6 +149,9 @@ def handle_required_actions(
             "add_menu_to_reservation": lambda: handle_add_menu_to_reservation(
                 call, organization
             ),
+            "reschedule_reservation": lambda: handle_reschedule_reservation(
+                call, organization, customer
+            ),
             "cancel_reservation": lambda: handle_cancel_reservation(
                 call, organization, customer
             ),
@@ -668,6 +671,160 @@ def handle_add_menu_to_reservation(call, organization) -> Dict[str, Any]:
         return {"error": f"Failed to add menu items: {str(e)}"}
 
 
+def handle_reschedule_reservation(call, organization, customer) -> Dict[str, Any]:
+    """Handle reschedule_reservation tool call"""
+    try:
+        args = json.loads(call.function.arguments)
+        logger.info(f"Reschedule reservation arguments: {args}")
+
+        # Extract original reservation identifiers
+        original_date_str = args.get("original_reservation_date")
+        original_time_str = args.get("original_reservation_time")
+
+        if not original_date_str:
+            return {"error": "Original reservation date is required"}
+
+        # Parse original reservation date
+        if is_valid_date(original_date_str):
+            original_reservation_date = datetime.strptime(
+                original_date_str, "%Y-%m-%d"
+            ).date()
+        else:
+            restaurant_location = get_timezone_from_country_city(
+                organization.country, organization.city
+            )
+            if not restaurant_location:
+                return {"error": "Could not determine restaurant timezone"}
+            original_reservation_date = parse_reservation_date(
+                original_date_str, restaurant_location
+            )
+
+        # Find the original reservation
+        if original_time_str:
+            try:
+                original_reservation_time = datetime.strptime(
+                    original_time_str, "%H:%M"
+                ).time()
+            except ValueError:
+                return {
+                    "error": "Invalid original reservation time format. Please use HH:MM."
+                }
+
+            original_reservation = Reservation.objects.filter(
+                client=customer,
+                reservation_date=original_reservation_date,
+                reservation_time=original_reservation_time,
+                organization=organization,
+            ).first()
+        else:
+            reservations = Reservation.objects.filter(
+                client=customer,
+                reservation_date=original_reservation_date,
+                organization=organization,
+            )
+
+            if reservations.count() > 1:
+                reserved_times = list(
+                    reservations.values_list("reservation_time", flat=True)
+                )
+                return {
+                    "status": "need_time_selection",
+                    "message": "Multiple reservations found for that date. Please specify the original time to reschedule.",
+                    "available_times": [str(rt) for rt in reserved_times],
+                }
+
+            original_reservation = reservations.first()
+
+        if not original_reservation:
+            return {
+                "error": "No reservation found with the given original date and time."
+            }
+
+        # Check if original reservation can be rescheduled
+        if original_reservation.reservation_status in [
+            ReservationStatus.CANCELLED,
+            ReservationStatus.COMPLETED,
+            ReservationStatus.RESCHEDULED,
+        ]:
+            return {
+                "error": f"Cannot reschedule reservation — it's already {original_reservation.reservation_status.lower()}."
+            }
+
+        # Store original reservation details for transfer
+        original_details = {
+            "reservation_name": original_reservation.reservation_name,
+            "reservation_phone": original_reservation.reservation_phone,
+            "use_whatsapp": original_reservation.use_whatsapp,
+            "guests": original_reservation.guests,
+            "booking_reason": original_reservation.booking_reason,
+            "special_notes": original_reservation.special_notes,
+            "original_date": str(original_reservation.reservation_date),
+            "original_time": str(original_reservation.reservation_time),
+        }
+
+        # Create new reservation with updated details
+        # Use provided new data, fall back to original if not provided
+        new_args = {
+            "reservation_name": args.get(
+                "reservation_name", original_details["reservation_name"]
+            ),
+            "reservation_phone": args.get(
+                "reservation_phone", original_details["reservation_phone"]
+            ),
+            "use_whatsapp": args.get("use_whatsapp", original_details["use_whatsapp"]),
+            "date": args.get("date"),  # This should be the new date
+            "time": args.get("time"),  # This should be the new time
+            "guests": args.get("guests", original_details["guests"]),
+            "booking_reason": args.get(
+                "booking_reason", original_details["booking_reason"]
+            ),
+            "special_notes": args.get(
+                "special_notes", original_details["special_notes"]
+            ),
+        }
+
+        # Create a mock call object for handle_book_table
+        class MockCall:
+            def __init__(self, arguments):
+                self.function = type(
+                    "obj", (object,), {"arguments": json.dumps(arguments)}
+                )
+
+        mock_call = MockCall(new_args)
+
+        # Create new reservation using existing book_table logic
+        booking_result = handle_book_table(mock_call, organization, customer)
+
+        if booking_result.get("status") == "success":
+            # Mark original reservation as rescheduled
+            original_reservation.reservation_status = ReservationStatus.RESCHEDULED
+            original_reservation.save()
+
+            # Return success with both original and new details
+            return {
+                "status": "success",
+                "message": "Reservation successfully rescheduled.",
+                "original_details": original_details,
+                "new_details": {
+                    "reservation_name": booking_result.get("reservation_name"),
+                    "reservation_date": booking_result.get("reservation_date"),
+                    "reservation_time": booking_result.get("reservation_time"),
+                    "guests": booking_result.get("guests"),
+                    "table_name": booking_result.get("table_name"),
+                    "reservation_uid": booking_result.get("reservation_uid"),
+                },
+            }
+        else:
+            return {
+                "error": f"Failed to create new reservation: {booking_result.get('error', 'Unknown error')}"
+            }
+
+    except Exception as e:
+        logger.error(f"Error in handle_reschedule_reservation: {str(e)}")
+        return {"error": f"Failed to reschedule reservation: {str(e)}"}
+
+
+# Updated handle_cancel_reservation to work with reschedule workflow
 def handle_cancel_reservation(call, organization, customer) -> Dict[str, Any]:
     """Handle cancel_reservation tool call"""
     try:
@@ -676,13 +833,9 @@ def handle_cancel_reservation(call, organization, customer) -> Dict[str, Any]:
 
         date_str = args.get("reservation_date")
         reservation_time_str = args.get("reservation_time")
-        cancellation_reason = args.get("cancellation_reason", "").strip()
 
         if not date_str:
             return {"error": "Reservation confirmation date is required"}
-
-        if not cancellation_reason:
-            return {"error": "Cancellation reason is required"}
 
         if is_valid_date(date_str):
             reservation_date = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -772,7 +925,6 @@ def handle_cancel_reservation(call, organization, customer) -> Dict[str, Any]:
 
         # Cancel the reservation
         reservation.reservation_status = ReservationStatus.CANCELLED
-        reservation.cancellation_reason = cancellation_reason
         reservation.cancelled_by = ReservationCancelledBy.CUSTOMER
         reservation.save()
 
@@ -783,7 +935,6 @@ def handle_cancel_reservation(call, organization, customer) -> Dict[str, Any]:
         return {
             "status": "success",
             "message": "Reservation successfully cancelled.",
-            "cancellation_reason": cancellation_reason,
             **original_details,
         }
 

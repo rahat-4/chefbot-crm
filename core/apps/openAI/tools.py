@@ -179,6 +179,74 @@ def function_tools(sales_level):
             {
                 "type": "function",
                 "function": {
+                    "name": "reschedule_reservation",
+                    "description": "Reschedule an existing reservation to a new date and time. This will create a new booking with all existing data and mark the original reservation as RESCHEDULED. Use same parameters as book_table but with original reservation identifiers.",
+                    "parameters": {
+                        "type": "object",
+                        "required": [
+                            "original_reservation_date",
+                            "reservation_name",
+                            "date",
+                            "time",
+                            "guests",
+                            "booking_reason",
+                            "use_whatsapp",
+                        ],
+                        "properties": {
+                            "original_reservation_date": {
+                                "type": "string",
+                                "description": "Original reservation date to identify the reservation to reschedule. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
+                            },
+                            "original_reservation_time": {
+                                "type": "string",
+                                "pattern": "^\\d{2}:\\d{2}$",
+                                "description": "Original reservation time (only needed if multiple bookings on same date).",
+                            },
+                            "reservation_name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Full name of the guest (from original reservation).",
+                            },
+                            "reservation_phone": {
+                                "type": "string",
+                                "pattern": "^[+]?[0-9\\s\\-\\(\\)]{10,15}$",
+                                "description": "Phone number (only if WhatsApp is not used).",
+                            },
+                            "use_whatsapp": {
+                                "type": "boolean",
+                                "description": "True if WhatsApp number should be used automatically.",
+                            },
+                            "date": {
+                                "type": "string",
+                                "description": "NEW reservation date. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
+                            },
+                            "time": {
+                                "type": "string",
+                                "pattern": "^\\d{2}:\\d{2}$",
+                                "description": "NEW reservation time in HH:MM format.",
+                            },
+                            "guests": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "description": "Total guests including the reserving person.",
+                            },
+                            "booking_reason": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Occasion or reason (e.g. 'Birthday', 'Family', 'Business').",
+                            },
+                            "special_notes": {
+                                "type": "string",
+                                "description": "Optional notes like seating preferences, allergies, etc.",
+                            },
+                        },
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
                     "name": "add_menu_to_reservation",
                     "description": "Add pre-selected menu items to a confirmed reservation using its UID.",
                     "parameters": {
