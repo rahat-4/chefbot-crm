@@ -11,6 +11,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 from common.models import BaseModel
 
 from apps.organization.models import Organization
+from datetime import datetime, timedelta
 
 from .choices import (
     CategoryChoices,
@@ -331,7 +332,7 @@ class Reservation(BaseModel):
         choices=ReservationCancelledBy.choices,
     )
     booking_reminder_sent = models.BooleanField(default=False)
-    booking_reminder_sent_at = models.TimeField(blank=True, null=True)
+    booking_reminder_sent_at = models.DateTimeField(blank=True, null=True)
 
     # FK
     menus = models.ManyToManyField(Menu, blank=True, related_name="reservation_menus")
@@ -348,6 +349,24 @@ class Reservation(BaseModel):
 
     def __str__(self):
         return f"UID: {self.uid} | Date: {self.reservation_date} | Time: {self.reservation_time}"
+
+    def save(self, *args, **kwargs):
+        """
+        Sets the booking_reminder_sent_at field to 30 minutes before the reservation.
+        """
+        self.booking_reminder_sent_at = self.get_reminder_time()
+        super().save(*args, **kwargs)
+
+    def get_reminder_time(self):
+        """
+        Returns a datetime object representing 30 minutes before the reservation.
+        """
+
+        if self.reservation_date and self.reservation_time:
+            reservation_dt = datetime.combine(
+                self.reservation_date, self.reservation_time
+            )
+            return reservation_dt - timedelta(minutes=30)
 
 
 class RestaurantDocument(BaseModel):

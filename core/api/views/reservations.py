@@ -18,7 +18,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 class ReservationListView(ListCreateAPIView):
     queryset = Reservation.objects.all()
     serializer_class = ReservationSerializer
-    permission_classes = []
+    permission_classes = [IsOwner]
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,
@@ -34,13 +34,13 @@ class ReservationListView(ListCreateAPIView):
     ]
     ordering_fields = ["reservation_date"]
 
-    # def get_queryset(self):
-    #     user = self.request.user
+    def get_queryset(self):
+        user = self.request.user
 
-    #     return self.queryset.filter(
-    #         organization__organization_users__user=user,
-    #         organization__organization_type=OrganizationType.RESTAURANT,
-    #     )
+        return self.queryset.filter(
+            organization__organization_users__user=user,
+            organization__organization_type=OrganizationType.RESTAURANT,
+        )
 
 
 class ReservationDetailView(RetrieveUpdateDestroyAPIView):
