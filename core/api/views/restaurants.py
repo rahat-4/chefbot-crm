@@ -19,6 +19,7 @@ from apps.restaurant.models import (
     Promotion,
     PromotionTrigger,
     Reservation,
+    RestaurantDocument,
 )
 
 from common.permissions import IsAdmin, IsOwner
@@ -32,6 +33,7 @@ from ..serializers.restaurants import (
     RestaurantWhatsAppBotUpdateSerializer,
     RestaurantPromotionSerializer,
     RestaurantReservationSerializer,
+    RestaurantDocumentSerializer,
 )
 
 
@@ -219,3 +221,28 @@ class RestaurantReservationListView(ListCreateAPIView):
     def get_queryset(self):
         organization_uid = self.kwargs.get("restaurant_uid")
         return self.queryset.filter(organization__uid=organization_uid)
+
+
+class RestaurantDocumentListView(ListCreateAPIView):
+    queryset = RestaurantDocument.objects.all()
+    serializer_class = RestaurantDocumentSerializer
+    permission_classes = [IsOwner]
+
+    def get_queryset(self):
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        return self.queryset.filter(organization__uid=restaurant_uid)
+
+    def perform_create(self, serializer):
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        organization = Organization.objects.get(uid=restaurant_uid)
+
+        # Delete existing menu document if it exists
+        existing_doc = RestaurantDocument.objects.filter(
+            organization=organization, name="menu"
+        ).first()
+        if existing_doc:
+            existing_doc.file.delete(save=False)  # delete file from storage
+            existing_doc.delete()  # delete old DB record
+
+        # Save new document
+        serializer.save(organization=organization, name="menu")

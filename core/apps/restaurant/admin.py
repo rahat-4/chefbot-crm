@@ -10,6 +10,7 @@ from .models import (
     RestaurantTable,
     Client,
     ClientMessage,
+    RestaurantDocument,
 )
 
 admin.site.register(Menu)
@@ -21,3 +22,4 @@ admin.site.register(Reservation)
 admin.site.register(RestaurantTable)
 admin.site.register(Client)
 admin.site.register(ClientMessage)
+admin.site.register(RestaurantDocument)

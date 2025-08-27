@@ -380,7 +380,8 @@ class RestaurantDocument(BaseModel):
         default=RestaurantDocumentType.PDF,
     )
     file = models.FileField(
-        upload_to="restaurant_documents/", help_text="Upload PDF, DOCX, or image file."
+        upload_to=get_restaurant_media_path_prefix,
+        help_text="Upload PDF, DOCX, or image file.",
     )
 
     class Meta:

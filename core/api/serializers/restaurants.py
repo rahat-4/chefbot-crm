@@ -28,6 +28,7 @@ from apps.restaurant.models import (
     PromotionTrigger,
     RestaurantTable,
     Reservation,
+    RestaurantDocument,
 )
 
 from openai import OpenAI
@@ -443,3 +444,12 @@ class RestaurantReservationSerializer(serializers.ModelSerializer):
         reservation = super().create(validated_data)
         reservation.menus.set(menus)
         return reservation
+
+
+class RestaurantDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RestaurantDocument
+        fields = [
+            "uid",
+            "file",
+        ]

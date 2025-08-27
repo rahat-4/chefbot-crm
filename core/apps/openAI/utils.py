@@ -13,7 +13,13 @@ from apps.restaurant.choices import (
     MenuStatus,
     ReservationCancelledBy,
 )
-from apps.restaurant.models import Client, Reservation, RestaurantTable, Menu
+from apps.restaurant.models import (
+    Client,
+    Reservation,
+    RestaurantTable,
+    Menu,
+    RestaurantDocument,
+)
 
 from common.timezones import (
     is_valid_date,
@@ -303,12 +309,22 @@ def handle_get_menu_items(call, organization) -> Dict[str, Any]:
                 }
             )
 
+        # Menu pdf file
+        menus = RestaurantDocument.objects.filter(
+            organization=organization, name="Menu"
+        ).first()
+
+        logger.info("--------------Menu pdf--------------", menus.file)
+        logger.info("==================================", menus.file.url)
+        logger.info("Menu pdf file path: %s", menus.file.path)
+
         return {
             "status": "success",
             "category": category.replace("_", " ").title(),
             "classification": classification.title(),
             "items": items,
             "total_items": len(items),
+            "menu_document_url": menus.file.url if menus else None,
         }
 
     except Exception as e:
