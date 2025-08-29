@@ -14,6 +14,7 @@ from apps.openAI.tools import function_tools
 from apps.openAI.instructions import (
     sales_level_one_assistant_instruction,
     sales_level_two_assistant_instruction,
+    sales_level_three_assistant_instruction,
 )
 from apps.organization.models import Organization, WhatsappBot
 from apps.restaurant.models import Reward
@@ -285,6 +286,24 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             tools = function_tools(1)
             instructions = sales_level_two_assistant_instruction(
                 instance.organization.name, existing_reward.type, existing_reward.label
+            )
+
+            tt = update_assistant(
+                client=client,
+                assistant_id=assistant_id,
+                assistant_name=f"{instance.organization.name} whatsapp reservation assistant",
+                instructions=instructions,
+                tools=tools,
+            )
+        elif instance.sales_level == 3:
+            # Ensure a reward exists for level 3 as well
+            reward = Reward.objects.filter(organization=instance.organization).first()
+            if not reward:
+                reward = Reward.objects.create(organization=instance.organization)
+
+            tools = function_tools(1)
+            instructions = sales_level_three_assistant_instruction(
+                instance.organization.name, reward.type, reward.label
             )
 
             tt = update_assistant(

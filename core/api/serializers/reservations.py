@@ -88,7 +88,10 @@ class ReservationSerializer(serializers.ModelSerializer):
         rep["client"] = ClientSerializer(instance.client).data
         rep["menus"] = MenuSerializer(instance.menus.all(), many=True).data
         rep["table"] = TableSerializer(instance.table).data
-        rep["organization"] = instance.organization.name
+        rep["organization"] = {
+            "uid": instance.organization.uid,
+            "name": instance.organization.name,
+        }
         return rep
 
     def create(self, validated_data):

@@ -96,6 +96,18 @@ class RestaurantTableListView(ListCreateAPIView):
         return self.queryset.filter(organization__uid=organization_uid)
 
 
+class RestaurantTableDetailView(RetrieveUpdateDestroyAPIView):
+    queryset = RestaurantTable.objects.all()
+    serializer_class = RestaurantTableSerializer
+    permission_classes = [IsOwner]
+
+    def get_object(self):
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        table_uid = self.kwargs.get("table_uid")
+
+        return self.queryset.get(organization__uid=restaurant_uid, uid=table_uid)
+
+
 class RestaurantMenuListView(ListCreateAPIView):
     serializer_class = RestaurantMenuSerializer
     permission_classes = [IsOwner]

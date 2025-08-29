@@ -8,6 +8,7 @@ from ..views.restaurants import (
     RestaurantMenuDetailView,
     RestaurantMenuListView,
     RestaurantTableListView,
+    RestaurantTableDetailView,
     RestaurantListView,
     RestaurantDetailView,
     RestaurantReservationListView,
@@ -49,6 +50,11 @@ urlpatterns = [
         "/<uuid:restaurant_uid>/documents",
         RestaurantDocumentListView.as_view(),
         name="restaurant.document-list",
+    ),
+    path(
+        "/<uuid:restaurant_uid>/tables/<uuid:table_uid>",
+        RestaurantTableDetailView.as_view(),
+        name="restaurant.table-detail",
     ),
     path(
         "/<uuid:restaurant_uid>/tables",

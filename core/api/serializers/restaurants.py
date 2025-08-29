@@ -207,6 +207,27 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
                     "A menu with this name already exists in this restaurant."
                 ]
 
+        # Validate upselling constraints
+        upselling_priority = attrs.get("upselling_priority", 1)
+
+        if not 1 <= upselling_priority <= 5:
+            errors["upselling_priority"] = ["Must be between 1 and 5."]
+
+        if upselling_priority > 1:
+            # Count how many other menus in this org have same priority and upselling enabled
+            conflict_qs = Menu.objects.filter(
+                organization=restaurant,
+                enable_upselling=True,
+                upselling_priority=upselling_priority,
+            )
+            if self.instance:
+                conflict_qs = conflict_qs.exclude(pk=self.instance.pk)
+
+            if conflict_qs.count() >= 5:
+                errors["upselling_priority"] = [
+                    f"Only 5 menus can have upselling priority level {upselling_priority}."
+                ]
+
         if errors:
             raise serializers.ValidationError(errors)
 
