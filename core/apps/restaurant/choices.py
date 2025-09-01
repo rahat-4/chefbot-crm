@@ -34,7 +34,7 @@ class TriggerType(models.TextChoices):
     BIRTHDAY = "BIRTHDAY", "Birthday"
     MENU_SELECTED = "MENU_SELECTED", "Menu Selected"
     INACTIVITY = "INACTIVITY", "Inactivity"
-    RESERVATION = "RESERVATION", "Reservation"
+    RESERVATION_COUNT = "RESERVATION_COUNT", "Reservation Count"
 
 
 class ReservationCancelledBy(models.TextChoices):

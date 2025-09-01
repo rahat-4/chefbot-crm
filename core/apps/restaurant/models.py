@@ -185,7 +185,12 @@ class PromotionTrigger(BaseModel):
     type = models.CharField(
         max_length=20, choices=TriggerType.choices, help_text="Type of the trigger."
     )
-    count = models.DateTimeField()
+    days_before = models.PositiveSmallIntegerField(
+        default=0,
+        blank=True,
+        null=True,
+        help_text="Number of days before the event to trigger the promotion.",
+    )
     description = models.TextField(
         blank=True,
         null=True,

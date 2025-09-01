@@ -16,11 +16,11 @@ from ..views.restaurants import (
 )
 
 urlpatterns = [
-    path(
-        "/<uuid:restaurant_uid>/promotions",
-        RestaurantPromotionListView.as_view(),
-        name="restaurant.promotions-list",
-    ),
+    # path(
+    #     "/<uuid:restaurant_uid>/promotions",
+    #     RestaurantPromotionListView.as_view(),
+    #     name="restaurant.promotions-list",
+    # ),
     path(
         "/<uuid:restaurant_uid>/whatsapp-bot/<uuid:whatsapp_bot_uid>",
         RestaurantWhatsAppBotDetailView.as_view(),

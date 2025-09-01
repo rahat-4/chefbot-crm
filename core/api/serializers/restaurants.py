@@ -375,7 +375,7 @@ class RewardSerializer(serializers.ModelSerializer):
 class PromotionTriggerSerializer(serializers.ModelSerializer):
     class Meta:
         model = PromotionTrigger
-        fields = ["uid", "type", "count", "description"]
+        fields = ["uid", "type", "days_before", "description"]
 
 
 class RestaurantPromotionSerializer(serializers.ModelSerializer):
