@@ -1,9 +1,6 @@
 from django.urls import path
 
 from ..views.restaurants import (
-    RestaurantPromotionListView,
-    RestaurantWhatsAppBotDetailView,
-    RestaurantWhatsAppBotListView,
     RestaurantMenuAllergensView,
     RestaurantMenuDetailView,
     RestaurantMenuListView,
@@ -11,26 +8,10 @@ from ..views.restaurants import (
     RestaurantTableDetailView,
     RestaurantListView,
     RestaurantDetailView,
-    RestaurantReservationListView,
     RestaurantDocumentListView,
 )
 
 urlpatterns = [
-    # path(
-    #     "/<uuid:restaurant_uid>/promotions",
-    #     RestaurantPromotionListView.as_view(),
-    #     name="restaurant.promotions-list",
-    # ),
-    path(
-        "/<uuid:restaurant_uid>/whatsapp-bot/<uuid:whatsapp_bot_uid>",
-        RestaurantWhatsAppBotDetailView.as_view(),
-        name="restaurant.whatsapp-bot-detail",
-    ),
-    path(
-        "/<uuid:restaurant_uid>/whatsapp-bot",
-        RestaurantWhatsAppBotListView.as_view(),
-        name="restaurant.whatsapp-bot",
-    ),
     path(
         "/<uuid:restaurant_uid>/menu/<uuid:menu_uid>/allergens",
         RestaurantMenuAllergensView.as_view(),
@@ -60,11 +41,6 @@ urlpatterns = [
         "/<uuid:restaurant_uid>/tables",
         RestaurantTableListView.as_view(),
         name="restaurant.table-list",
-    ),
-    path(
-        "/<uuid:restaurant_uid>/reservations",
-        RestaurantReservationListView.as_view(),
-        name="restaurant.reservation-list",
     ),
     path(
         "/<uuid:restaurant_uid>",

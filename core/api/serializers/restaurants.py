@@ -1,31 +1,23 @@
 import logging
 import re
-from collections import defaultdict
 
 from django.conf import settings
 from django.db import transaction
 
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
-from decouple import config
 
 from common.openAI.generate_nutritions import generate_nutrition_info
-from common.crypto import encrypt_data, decrypt_data, hash_key
 
 from apps.organization.choices import OrganizationType
 from apps.organization.models import (
     Organization,
     OrganizationUser,
     OpeningHours,
-    WhatsappBot,
 )
 from apps.restaurant.models import (
     Client,
     Menu,
-    Reward,
-    Promotion,
-    PromotionTrigger,
     RestaurantTable,
     Reservation,
     RestaurantDocument,
@@ -304,173 +296,6 @@ class RestaurantMenuAllergensSerializer(serializers.ModelSerializer):
     class Meta:
         model = Menu
         fields = ["allergens"]
-
-
-class RestaurantWhatsAppBotSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = WhatsappBot
-        fields = [
-            "uid",
-            "chatbot_name",
-            "sales_level",
-            "openai_key",
-            "assistant_id",
-            "twilio_sid",
-            "twilio_auth_token",
-            "twilio_number",
-        ]
-
-    def validate(self, attrs):
-        organization_uid = self.context["view"].kwargs.get("restaurant_uid")
-
-        organization = Organization.objects.filter(uid=organization_uid).first()
-
-        if not organization:
-            raise ValidationError({"organization": "Invalid organization."})
-
-        whatsappbot = WhatsappBot.objects.filter(organization=organization).first()
-
-        if whatsappbot:
-            raise ValidationError(
-                {"chatbot_name": "A WhatsappBot already exists for this restaurant."}
-            )
-
-        self.organization = organization
-
-        return attrs
-
-    def create(self, validated_data):
-        crypto_password = config("CRYPTO_PASSWORD")
-
-        validated_data["hashed_key"] = hash_key(validated_data["twilio_sid"])
-        validated_data["openai_key"] = encrypt_data(
-            validated_data["openai_key"], crypto_password
-        )
-        validated_data["assistant_id"] = encrypt_data(
-            validated_data["assistant_id"], crypto_password
-        )
-        validated_data["twilio_sid"] = encrypt_data(
-            validated_data["twilio_sid"], crypto_password
-        )
-        validated_data["twilio_auth_token"] = encrypt_data(
-            validated_data["twilio_auth_token"], crypto_password
-        )
-        validated_data["twilio_number"] = f"whatsapp:{validated_data['twilio_number']}"
-
-        return super().create(validated_data)
-
-
-class RestaurantWhatsAppBotUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = WhatsappBot
-        fields = [
-            "sales_level",
-        ]
-
-
-class RewardSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Reward
-        fields = [
-            "uid",
-            "type",
-            "label",
-        ]
-
-
-class PromotionTriggerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PromotionTrigger
-        fields = ["uid", "type", "days_before", "description"]
-
-
-class RestaurantPromotionSerializer(serializers.ModelSerializer):
-    reward = RewardSerializer()
-    trigger = PromotionTriggerSerializer()
-
-    class Meta:
-        model = Promotion
-        fields = [
-            "uid",
-            "title",
-            "message",
-            "reward",
-            "trigger",
-            "valid_from",
-            "valid_to",
-            "is_enabled",
-        ]
-
-    def create(self, validated_data):
-        with transaction.atomic():
-            reward_data = validated_data.pop("reward", None)
-            trigger_data = validated_data.pop("trigger", None)
-
-            reward = Reward.objects.create(**reward_data) if reward_data else None
-            trigger = (
-                PromotionTrigger.objects.create(**trigger_data)
-                if trigger_data
-                else None
-            )
-
-            promotion = Promotion.objects.create(
-                **validated_data, reward=reward, trigger=trigger
-            )
-            return promotion
-
-
-class RestaurantClientSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Client
-        fields = [
-            "uid",
-            "name",
-            "email",
-            "phone_number",
-            "number_of_people",
-            "date",
-            "time",
-            "notes",
-        ]
-
-
-class RestaurantReservationSerializer(serializers.ModelSerializer):
-    client = serializers.SlugRelatedField(
-        slug_field="uid", queryset=Client.objects.all()
-    )
-    menus = serializers.SlugRelatedField(
-        slug_field="uid", queryset=Menu.objects.all(), many=True
-    )
-    table = serializers.SlugRelatedField(
-        slug_field="uid", queryset=RestaurantTable.objects.all()
-    )
-
-    class Meta:
-        model = Reservation
-        fields = [
-            "uid",
-            "client",
-            "reservation_name",
-            "reservation_phone",
-            "reservation_date",
-            "reservation_time",
-            "reservation_end_time",
-            "reservation_reason",
-            "guests",
-            "notes",
-            "reservation_status",
-            "cancelled_by",
-            "booking_reminder_sent",
-            "booking_reminder_sent_at",
-            "menus",
-            "table",
-        ]
-
-    def create(self, validated_data):
-        menus = validated_data.pop("menus", [])
-        reservation = super().create(validated_data)
-        reservation.menus.set(menus)
-        return reservation
 
 
 class RestaurantDocumentSerializer(serializers.ModelSerializer):
