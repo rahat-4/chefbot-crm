@@ -24,3 +24,15 @@ class DaysOfWeek(models.TextChoices):
 
     def __str__(self):
         return self.label
+
+
+class OrganizationLanguage(models.TextChoices):
+    ENGLISH = "ENGLISH", "English"
+    GERMAN = "GERMAN", "German"
+    FRENCH = "FRENCH", "French"
+    SPANISH = "SPANISH", "Spanish"
+    ITALIAN = "ITALIAN", "Italian"
+    ARABIC = "ARABIC", "Arabic"
+
+    def __str__(self):
+        return self.label

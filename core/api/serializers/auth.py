@@ -19,23 +19,48 @@ class OrganizationSummarySerializer(serializers.ModelSerializer):
 
 class MeSerializer(serializers.ModelSerializer):
     organizations = serializers.SerializerMethodField()
+    language = serializers.CharField(
+        source="organization_users.first.organization.organization_language",
+        read_only=True,
+    )
+    organization_language = serializers.CharField(
+        required=False,
+        write_only=True,
+        allow_blank=True,
+    )
 
     class Meta:
         model = User
-        fields = ["uid", "avatar", "first_name", "last_name", "email", "organizations"]
+        fields = [
+            "uid",
+            "avatar",
+            "first_name",
+            "last_name",
+            "phone",
+            "email",
+            "gender",
+            "date_of_birth",
+            "language",
+            "organization_language",
+            "organizations",
+        ]
+        read_only_fields = ["uid", "phone", "email", "organizations"]
 
     def get_organizations(self, obj):
         organizations = Organization.objects.for_user(obj).restaurants()
         return OrganizationSummarySerializer(organizations, many=True).data
 
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
+    def update(self, instance, validated_data):
+        organization_language = validated_data.pop("organization_language", None)
 
-    #     restaurant = self._get_restaurant_from_context()
-    #     if restaurant:
-    #         self.fields["recommended_combinations"].queryset = Menu.objects.filter(
-    #             organization=restaurant
-    #         )
+        if organization_language:
+            org_user = instance.organization_users.first()
+            if org_user and org_user.organization:
+                org = org_user.organization
+                org.organization_language = organization_language
+                org.save()
+
+        return super().update(instance, validated_data)
 
 
 class UserRegistrationSessionSerializer(serializers.ModelSerializer):
@@ -113,4 +138,42 @@ class UserPasswordSetSerializer(serializers.Serializer):
 
         self.session.delete()
 
+        return user
+
+
+class UserChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+    confirm_new_password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        errors = {}
+
+        old_password = attrs.get("old_password")
+        new_password = attrs.get("new_password")
+        confirm_new_password = attrs.get("confirm_new_password")
+
+        user = self.context["request"].user
+
+        if not user.check_password(old_password):
+            errors["old_password"] = ["Old password is incorrect."]
+
+        try:
+            validate_password(new_password)
+        except DjangoValidationError as e:
+            errors["new_password"] = e.messages
+
+        if new_password != confirm_new_password:
+            errors["confirm_new_password"] = ["New password do not match."]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        new_password = self.validated_data["new_password"]
+        user.set_password(new_password)
+        user.save()
         return user

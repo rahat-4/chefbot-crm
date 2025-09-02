@@ -6,6 +6,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 from common.models import BaseModel
 
 from .choices import (
+    OrganizationLanguage,
     OrganizationStatus,
     OrganizationType,
     DaysOfWeek,
@@ -45,6 +46,11 @@ class Organization(BaseModel):
         max_length=20,
         choices=OrganizationType.choices,
         default=OrganizationType.RESTAURANT,
+    )
+    organization_language = models.CharField(
+        max_length=20,
+        choices=OrganizationLanguage.choices,
+        default=OrganizationLanguage.ENGLISH,
     )
     country = models.CharField()  # Needs to be modify
     city = models.CharField(max_length=255)

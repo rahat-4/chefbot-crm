@@ -16,6 +16,7 @@ from apps.authentication.models import RegistrationSession
 from ..serializers.auth import (
     UserRegistrationSessionSerializer,
     UserPasswordSetSerializer,
+    UserChangePasswordSerializer,
     MeSerializer,
 )
 
@@ -129,3 +130,27 @@ class MeView(APIView):
     def get(self, request, *args, **kwargs):
         serializer = MeSerializer(request.user, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, *args, **kwargs):
+        serializer = MeSerializer(
+            request.user, data=request.data, partial=True, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class UserChangePasswordView(APIView):
+    serializer_class = UserChangePasswordSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {"message": "Password changed successfully."}, status=status.HTTP_200_OK
+        )

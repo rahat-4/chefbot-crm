@@ -159,6 +159,12 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
             return Organization.objects.filter(uid=restaurant_uid).first()
         return None
 
+    def validate_price(self, value):
+        """Validate price is between 0 and 1000"""
+        if value is not None and not (0 < value < 1000):
+            raise serializers.ValidationError("Price must be between 0 and 1000.")
+        return value
+
     def validate_recommended_combinations(self, value):
         if value and len(value) > 5:
             raise serializers.ValidationError(
