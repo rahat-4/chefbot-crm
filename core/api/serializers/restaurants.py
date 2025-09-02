@@ -16,7 +16,8 @@ from apps.organization.models import (
     OpeningHours,
 )
 from apps.restaurant.models import (
-    Client,
+    Promotion,
+    Reward,
     Menu,
     RestaurantTable,
     Reservation,
@@ -305,3 +306,33 @@ class RestaurantDocumentSerializer(serializers.ModelSerializer):
             "uid",
             "file",
         ]
+
+
+class ReservationSlimSerializer(serializers.ModelSerializer):
+    menu_selected = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Reservation
+        fields = [
+            "uid",
+            "reservation_date",
+            "reservation_time",
+            "guests",
+            "menu_selected",
+        ]
+
+    def get_menu_selected(self, obj):
+        return obj.menus.exists()
+
+
+class ReservationPromotionSlimSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Promotion
+        fields = ["uid", "title", "message"]
+
+
+class RestaurantDashboardSerializer(serializers.Serializer):
+    today_reservation = serializers.IntegerField()
+    next_reservation = ReservationSlimSerializer(read_only=True)
+    sales_level = serializers.IntegerField()
+    active_promotions = ReservationPromotionSlimSerializer(many=True, read_only=True)

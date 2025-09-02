@@ -1,11 +1,15 @@
 import logging
 
+from datetime import datetime, date
+
+from rest_framework.response import Response
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateAPIView,
     RetrieveUpdateDestroyAPIView,
     ValidationError,
 )
+from rest_framework.views import APIView
 
 from apps.organization.models import Organization
 from apps.organization.choices import OrganizationType
@@ -25,6 +29,7 @@ from ..serializers.restaurants import (
     RestaurantMenuSerializer,
     RestaurantMenuAllergensSerializer,
     RestaurantDocumentSerializer,
+    RestaurantDashboardSerializer,
 )
 
 
@@ -173,3 +178,38 @@ class RestaurantDocumentListView(ListCreateAPIView):
 
         # Save new document
         serializer.save(organization=organization, name="menu")
+
+
+class RestaurantDashboardView(APIView):
+    permission_classes = [IsOwner]
+
+    def get_active_promotion(self, organization):
+        today = date.today()
+        return organization.promotions.filter(
+            is_enabled=True, valid_from__lte=today, valid_to__gte=today
+        )
+
+    def get(self, request, *args, **kwargs):
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        organization = Organization.objects.filter(uid=restaurant_uid).first()
+
+        if not organization:
+            return Response({"error": "Invalid organization."}, status=404)
+
+        # Gather dashboard data
+        data = {
+            "today_reservation": Reservation.objects.filter(
+                organization=organization, reservation_date=datetime.today()
+            ).count(),
+            "next_reservation": Reservation.objects.filter(
+                organization=organization, reservation_time__gt=datetime.now()
+            )
+            .order_by("reservation_time")
+            .first(),
+            "sales_level": organization.sales_levels.first().level,
+            "active_promotions": self.get_active_promotion(organization),
+        }
+
+        serializer = RestaurantDashboardSerializer(data)
+
+        return Response(serializer.data)
