@@ -1,4 +1,8 @@
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import (
+    ListAPIView,
+    RetrieveUpdateDestroyAPIView,
+    get_object_or_404,
+)
 from rest_framework import filters
 
 from django_filters.rest_framework import DjangoFilterBackend
@@ -9,12 +13,12 @@ from apps.restaurant.models import Client
 
 from common.permissions import IsOwner
 
-from ..serializers.clients import ClientSerializers
+from ..serializers.clients import ClientSerializer
 
 
 class ClientListView(ListAPIView):
     queryset = Client.objects.all()
-    serializer_class = ClientSerializers
+    serializer_class = ClientSerializer
     permission_classes = [IsOwner]
     filter_backends = [
         DjangoFilterBackend,
@@ -30,3 +34,14 @@ class ClientListView(ListAPIView):
             organization__organization_users__user=user,
             organization__organization_type=OrganizationType.RESTAURANT,
         )
+
+
+class ClientDetailView(RetrieveUpdateDestroyAPIView):
+    queryset = Client.objects.all()
+    serializer_class = ClientSerializer
+    permission_classes = [IsOwner]
+
+    def get_object(self):
+        client_uid = self.kwargs.get("client_uid")
+
+        return get_object_or_404(self.queryset, uid=client_uid)
