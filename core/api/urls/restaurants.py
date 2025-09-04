@@ -10,9 +10,15 @@ from ..views.restaurants import (
     RestaurantDetailView,
     RestaurantDocumentListView,
     RestaurantDashboardView,
+    RestaurantAnalyticsView,
 )
 
 urlpatterns = [
+    path(
+        "/<uuid:restaurant_uid>/analytics",
+        RestaurantAnalyticsView.as_view(),
+        name="restaurant.analytics",
+    ),
     path(
         "/<uuid:restaurant_uid>/menu/<uuid:menu_uid>/allergens",
         RestaurantMenuAllergensView.as_view(),

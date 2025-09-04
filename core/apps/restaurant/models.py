@@ -353,7 +353,7 @@ class Reservation(BaseModel):
         verbose_name_plural = "Reservations"
 
     def __str__(self):
-        return f"UID: {self.uid} | Date: {self.reservation_date} | Time: {self.reservation_time}"
+        return f"UID: {self.uid} | Date: {self.reservation_date} | Time: {self.reservation_time} | Restaurant: {self.organization.name}"
 
     def save(self, *args, **kwargs):
         """

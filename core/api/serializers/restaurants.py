@@ -22,6 +22,7 @@ from apps.restaurant.models import (
     RestaurantTable,
     Reservation,
     RestaurantDocument,
+    SalesLevel,
 )
 
 from openai import OpenAI
@@ -79,6 +80,11 @@ class RestaurantSerializer(serializers.ModelSerializer):
             OrganizationUser.objects.create(
                 organization=organization,
                 user=self.context["request"].user,
+            )
+
+            # Add default sales level
+            SalesLevel.objects.create(
+                organization=organization, name="Reservation", level=1
             )
 
             for opening_hour in opening_hours:
