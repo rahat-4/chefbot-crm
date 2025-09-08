@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 
 from apps.openAI.utils import cancel_active_runs, process_assistant_run
-from apps.organization.models import Organization, OrganizationUser, WhatsappBot
+from apps.organization.models import Organization, WhatsappBot
 from apps.restaurant.models import Client
 
 from common.crypto import decrypt_data

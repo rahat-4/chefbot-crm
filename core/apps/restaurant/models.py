@@ -100,7 +100,7 @@ class Menu(BaseModel):
         return formatted_ingredients
 
     def __str__(self):
-        return f"{self.organization.name} - {self.name}"
+        return f"{self.organization.name} - {self.name} - Category: {self.category} - Classification: {self.classification} - Upselling: {self.enable_upselling} - Priority: {self.upselling_priority}"
 
 
 class SalesLevel(BaseModel):
