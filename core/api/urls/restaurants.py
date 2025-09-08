@@ -10,14 +10,26 @@ from ..views.restaurants import (
     RestaurantDetailView,
     RestaurantDocumentListView,
     RestaurantDashboardView,
-    RestaurantAnalyticsView,
+    RestaurantAnalyticsTopDishesView,
+    RestaurantAnalyticsMostVisitedView,
+    RestaurantAnalyticsEffectivePromotionsView,
 )
 
 urlpatterns = [
+    # path(
+    #     "/<uuid:restaurant_uid>/analytics/effective-promotions",
+    #     RestaurantAnalyticsEffectivePromotionsView.as_view(),
+    #     name="restaurant.analytics.effective-promotions",
+    # ),
     path(
-        "/<uuid:restaurant_uid>/analytics",
-        RestaurantAnalyticsView.as_view(),
-        name="restaurant.analytics",
+        "/<uuid:restaurant_uid>/analytics/most-visited",
+        RestaurantAnalyticsMostVisitedView.as_view(),
+        name="restaurant.analytics.most-visited",
+    ),
+    path(
+        "/<uuid:restaurant_uid>/analytics/top-dishes",
+        RestaurantAnalyticsTopDishesView.as_view(),
+        name="restaurant.analytics.top-dishes",
     ),
     path(
         "/<uuid:restaurant_uid>/menu/<uuid:menu_uid>/allergens",
