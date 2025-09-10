@@ -9,7 +9,7 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIV
 
 from apps.openAI.utils import cancel_active_runs, process_assistant_run
 from apps.organization.models import Organization, WhatsappBot
-from apps.restaurant.models import Client
+from apps.restaurant.models import Client, RestaurantDocument
 
 from common.crypto import decrypt_data
 from common.whatsapp import send_whatsapp_reply
@@ -21,6 +21,38 @@ from ..serializers.whatsapp import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def twilio_media_message(
+    organization, request, account_sid, auth_token, from_number, to_number
+):
+    from twilio.rest import Client
+
+    # Menu pdf file
+    menus = RestaurantDocument.objects.filter(
+        organization=organization, name="menu"
+    ).first()
+
+    menu_pdf_url = None
+    if menus and menus.file:
+        if request:
+            menu_pdf_url = request.build_absolute_uri(menus.file.url)
+        else:
+            # fallback to relative url
+            menu_pdf_url = menus.file.url
+
+    if menu_pdf_url:
+        client = Client(account_sid, auth_token)
+
+        message = client.messages.create(
+            media_url=[menu_pdf_url],
+            from_=from_number,
+            to=to_number,
+        )
+    else:
+        message = None
+
+    return message
 
 
 @csrf_exempt
@@ -48,6 +80,7 @@ def whatsapp_bot(request):
         twilio_auth_token = decrypt_data(
             bot.twilio_auth_token, settings.CRYPTO_PASSWORD
         )
+        twilio_sid = decrypt_data(bot.twilio_sid, settings.CRYPTO_PASSWORD)
 
         # Get or create client
         customer, created = Client.objects.get_or_create(
@@ -75,8 +108,20 @@ def whatsapp_bot(request):
             assistant_id=assistant_id,
         )
 
+        # Get menu pdf if exists and send as media message
+        media_message = twilio_media_message(
+            bot.organization,
+            request,
+            twilio_sid,
+            twilio_auth_token,
+            twilio_number,
+            whatsapp_number,
+        )
+
         # Process the run
-        reply = process_assistant_run(openai_client, customer, run, bot.organization)
+        reply = process_assistant_run(
+            media_message, openai_client, customer, run, bot.organization
+        )
 
         if reply:
             # Send reply via WhatsApp

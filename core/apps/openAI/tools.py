@@ -74,24 +74,6 @@ def function_tools(sales_level):
             {
                 "type": "function",
                 "function": {
-                    "name": "get_menu_details",
-                    "description": "Retrieve full details about a specific menu item. Only use when customer selects a specific dish.",
-                    "parameters": {
-                        "type": "object",
-                        "required": ["name"],
-                        "properties": {
-                            "name": {
-                                "type": "string",
-                                "description": "Exact menu item name.",
-                            }
-                        },
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            {
-                "type": "function",
-                "function": {
                     "name": "get_available_tables",
                     "description": "Check table availability for a given date (and optional time). Accept natural expressions like 'today', 'tomorrow', or 'next Saturday'.",
                     "parameters": {

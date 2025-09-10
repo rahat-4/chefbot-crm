@@ -54,7 +54,7 @@ def cancel_active_runs(openai_client: OpenAI, thread_id: str) -> None:
 
 
 def process_assistant_run(
-    openai_client: OpenAI, customer: Client, run, organization
+    media_message, openai_client: OpenAI, customer: Client, run, organization
 ) -> Optional[str]:
     """Process the assistant run and return the response"""
     max_iterations = 30
@@ -82,7 +82,7 @@ def process_assistant_run(
         elif run_status.status == "requires_action":
             logger.info("Processing required actions")
             if not handle_required_actions(
-                openai_client, customer, run_status, organization
+                media_message, openai_client, customer, run_status, organization
             ):
                 logger.error("Failed to handle required actions")
                 return None
@@ -128,7 +128,7 @@ def get_assistant_response(openai_client: OpenAI, thread_id: str) -> Optional[st
 
 
 def handle_required_actions(
-    openai_client: OpenAI, customer: Client, run_status, organization
+    media_message, openai_client: OpenAI, customer: Client, run_status, organization
 ) -> bool:
     """Handle required actions and submit tool outputs"""
     if not (
@@ -147,13 +147,15 @@ def handle_required_actions(
             "get_restaurant_information": lambda: handle_get_restaurant_information(
                 call, organization
             ),
-            "get_menu_items": lambda: handle_get_menu_items(call, organization),
+            "get_menu_items": lambda: handle_get_menu_items(
+                media_message, call, organization
+            ),
             "get_available_tables": lambda: handle_get_available_tables(
                 call, organization
             ),
             "book_table": lambda: handle_book_table(call, organization, customer),
             "add_menu_to_reservation": lambda: handle_add_menu_to_reservation(
-                call, organization
+                media_message, call, organization
             ),
             "reschedule_reservation": lambda: handle_reschedule_reservation(
                 call, organization, customer
@@ -256,7 +258,7 @@ def handle_get_restaurant_information(call, organization) -> Dict[str, Any]:
         return {"error": f"Failed to get restaurant information: {str(e)}"}
 
 
-def handle_get_menu_items(call, organization) -> Dict[str, Any]:
+def handle_get_menu_items(media_message, call, organization) -> Dict[str, Any]:
     """Handle get_menu_items tool call"""
     try:
         args = json.loads(call.function.arguments)
@@ -309,22 +311,13 @@ def handle_get_menu_items(call, organization) -> Dict[str, Any]:
                 }
             )
 
-        # Menu pdf file
-        menus = RestaurantDocument.objects.filter(
-            organization=organization, name="Menu"
-        ).first()
-
-        logger.info("--------------Menu pdf--------------", menus.file)
-        logger.info("==================================", menus.file.url)
-        logger.info("Menu pdf file path: %s", menus.file.path)
-
         return {
             "status": "success",
             "category": category.replace("_", " ").title(),
             "classification": classification.title(),
             "items": items,
             "total_items": len(items),
-            "menu_document_url": menus.file.url if menus else None,
+            "menu_pdf": media_message,
         }
 
     except Exception as e:
@@ -603,7 +596,7 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
         return {"error": f"Booking failed: {str(e)}"}
 
 
-def handle_add_menu_to_reservation(call, organization) -> Dict[str, Any]:
+def handle_add_menu_to_reservation(media_message, call, organization) -> Dict[str, Any]:
     """Handle add_menu_to_reservation tool call"""
     try:
         args = json.loads(call.function.arguments)
@@ -674,6 +667,7 @@ def handle_add_menu_to_reservation(call, organization) -> Dict[str, Any]:
 
         return {
             "status": "success" if added_items else "partial",
+            "menu_pdf": media_message,
             "reservation_uid": reservation_uid,
             "added_items": added_items,
             "failed_items": failed_items,

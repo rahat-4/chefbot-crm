@@ -125,4 +125,4 @@ class WhatsappBot(BaseModel):
         )
 
     def __str__(self):
-        return self.chatbot_name
+        return f"{self.chatbot_name} - {self.uid}"
