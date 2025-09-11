@@ -11,7 +11,7 @@ from rest_framework.generics import (
 )
 from rest_framework.views import APIView
 
-from apps.organization.models import Organization, OpeningHours
+from apps.organization.models import Organization, OpeningHours, WhatsappBot
 from apps.organization.choices import OrganizationType
 from apps.restaurant.choices import MenuStatus
 from apps.restaurant.models import (
@@ -31,6 +31,8 @@ from ..serializers.restaurants import (
     RestaurantMenuAllergensSerializer,
     RestaurantDocumentSerializer,
     RestaurantDashboardSerializer,
+    RestaurantWhatsAppSerializer,
+    RestaurantWhatsAppDetailSerializer,
 )
 
 
@@ -378,3 +380,21 @@ class RestaurantAnalyticsEffectivePromotionsView(APIView):
         effective_promotions = []
 
         return Response(effective_promotions)
+
+
+class RestaurantWhatsAppListView(ListCreateAPIView):
+    queryset = WhatsappBot.objects.all()
+    serializer_class = RestaurantWhatsAppSerializer
+
+    def get_queryset(self):
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        return self.queryset.filter(organization__uid=restaurant_uid)
+
+
+class RestaurantWhatsAppDetailView(RetrieveUpdateDestroyAPIView):
+    queryset = WhatsappBot.objects.all()
+    serializer_class = RestaurantWhatsAppDetailSerializer
+
+    def get_object(self):
+        whatsapp_bot_uid = self.kwargs["whatsapp_bot_uid"]
+        return self.queryset.get(uid=whatsapp_bot_uid)

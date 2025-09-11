@@ -6,10 +6,11 @@ from phonenumber_field.modelfields import PhoneNumberField
 from common.models import BaseModel
 
 from .choices import (
+    ChatbotTone,
+    DaysOfWeek,
     OrganizationLanguage,
     OrganizationStatus,
     OrganizationType,
-    DaysOfWeek,
 )
 from .managers import OrganizationQuerySet
 from .utils import get_organization_media_path_prefix
@@ -101,6 +102,18 @@ class OpeningHours(BaseModel):
 
 class WhatsappBot(BaseModel):
     chatbot_name = models.CharField(max_length=255)
+    chatbot_language = models.CharField(
+        max_length=20,
+        choices=OrganizationLanguage.choices,
+        default=OrganizationLanguage.ENGLISH,
+    )
+    chatbot_tone = models.CharField(
+        max_length=20,
+        choices=ChatbotTone.choices,
+        default=ChatbotTone.CASUAL,
+    )
+    chatbot_custom_tone = models.TextField(blank=True, null=True)
+    max_response_length = models.PositiveIntegerField(default=150)
     sales_level = models.PositiveSmallIntegerField(default=1)
     openai_key = models.JSONField(default=dict)
     assistant_id = models.JSONField(default=dict)

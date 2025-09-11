@@ -1,6 +1,8 @@
 from django.urls import path
 
 from ..views.restaurants import (
+    RestaurantWhatsAppDetailView,
+    RestaurantWhatsAppListView,
     RestaurantMenuAllergensView,
     RestaurantMenuDetailView,
     RestaurantMenuListView,
@@ -30,6 +32,16 @@ urlpatterns = [
         "/<uuid:restaurant_uid>/analytics/top-dishes",
         RestaurantAnalyticsTopDishesView.as_view(),
         name="restaurant.analytics.top-dishes",
+    ),
+    path(
+        "/<uuid:restaurant_uid>/whatsapp/<uuid:whatsapp_bot_uid>",
+        RestaurantWhatsAppDetailView.as_view(),
+        name="restaurant.whatsapp-detail",
+    ),
+    path(
+        "/<uuid:restaurant_uid>/whatsapp",
+        RestaurantWhatsAppListView.as_view(),
+        name="restaurant.whatsapp-list",
     ),
     path(
         "/<uuid:restaurant_uid>/menu/<uuid:menu_uid>/allergens",

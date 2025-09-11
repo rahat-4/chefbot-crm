@@ -36,3 +36,13 @@ class OrganizationLanguage(models.TextChoices):
 
     def __str__(self):
         return self.label
+
+
+class ChatbotTone(models.TextChoices):
+    CASUAL = "CASUAL", "Casual"
+    FORMAL = "FORMAL", "Formal"
+    HUMOROUS = "HUMOROUS", "Humorous"
+    PROFESSIONAL = "PROFESSIONAL", "Professional"
+
+    def __str__(self):
+        return self.label

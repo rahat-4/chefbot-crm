@@ -38,6 +38,9 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
         fields = [
             "uid",
             "chatbot_name",
+            "chatbot_language",
+            "chatbot_tone",
+            "chatbot_custom_tone",
             "sales_level",
             "openai_key",
             "assistant_id",
@@ -152,6 +155,9 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         fields = [
             "uid",
             "chatbot_name",
+            "chatbot_language",
+            "chatbot_tone",
+            "chatbot_custom_tone",
             "sales_level",
             "openai_key",
             "assistant_id",
