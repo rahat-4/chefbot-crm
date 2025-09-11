@@ -1,5 +1,15 @@
-from typing import Optional
+import logging
 import requests
+from typing import Optional
+
+from django.conf import settings
+from django.http import JsonResponse
+
+from apps.organization.models import WhatsappBot
+
+from common.crypto import decrypt_data
+
+logger = logging.getLogger(__name__)
 
 
 def send_whatsapp_reply(
@@ -33,3 +43,42 @@ def send_whatsapp_reply(
     except requests.exceptions.RequestException as e:
         print(f"Error sending WhatsApp message: {e}")
         return None
+
+
+def send_cancellation_notification(twilio_number, whatsapp_number, message):
+    """Send cancellation notification via WhatsApp"""
+
+    if not all([twilio_number, whatsapp_number, message]):
+        logger.error("Missing required WhatsApp data")
+        return JsonResponse({"status": "error", "message": "Missing required data"})
+
+    try:
+        bot = WhatsappBot.objects.filter(twilio_number=twilio_number).first()
+        if not bot:
+            logger.error(f"Twilio number not found: {twilio_number}")
+            return JsonResponse(
+                {"status": "error", "message": "Whatsapp number not found"}
+            )
+
+        twilio_auth_token = decrypt_data(
+            bot.twilio_auth_token, settings.CRYPTO_PASSWORD
+        )
+        twilio_sid = decrypt_data(bot.twilio_sid, settings.CRYPTO_PASSWORD)
+
+        # Send reply via WhatsApp
+        send_result = send_whatsapp_reply(
+            whatsapp_number,
+            message,
+            twilio_sid,
+            twilio_auth_token,
+            twilio_number,
+        )
+
+        if send_result:
+            logger.info(f"Message sent successfully to {whatsapp_number}")
+            return JsonResponse({"status": "ok"})
+        else:
+            logger.error("Failed to send WhatsApp message")
+
+    except Exception as e:
+        logger.error(f"Error in send_cancellation_notification: {str(e)}")

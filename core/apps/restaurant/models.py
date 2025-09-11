@@ -336,6 +336,7 @@ class Reservation(BaseModel):
         blank=True,
         choices=ReservationCancelledBy.choices,
     )
+    cancellation_reason = models.TextField(blank=True, null=True)
     booking_reminder_sent = models.BooleanField(default=False)
     booking_reminder_sent_at = models.DateTimeField(blank=True, null=True)
 
@@ -353,7 +354,7 @@ class Reservation(BaseModel):
         verbose_name_plural = "Reservations"
 
     def __str__(self):
-        return f"UID: {self.uid} | Date: {self.reservation_date} | Time: {self.reservation_time} | Restaurant: {self.organization.name}"
+        return f"UID: {self.uid} | Date: {self.reservation_date} | Time: {self.reservation_time} | Restaurant: {self.organization.name} | Status: {self.reservation_status}"
 
     def save(self, *args, **kwargs):
         """

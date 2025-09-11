@@ -1,8 +1,12 @@
+from django.db import transaction
+
 from rest_framework import serializers
 
 from apps.organization.models import Organization
-
 from apps.restaurant.models import Client, Menu, Reservation, RestaurantTable
+from apps.restaurant.choices import ReservationCancelledBy, ReservationStatus
+
+from common.whatsapp import send_cancellation_notification
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -75,6 +79,7 @@ class ReservationSerializer(serializers.ModelSerializer):
             "notes",
             "reservation_status",
             "cancelled_by",
+            "cancellation_reason",
             "booking_reminder_sent",
             "booking_reminder_sent_at",
             "menus",
@@ -82,9 +87,26 @@ class ReservationSerializer(serializers.ModelSerializer):
             "organization",
         ]
 
+        read_only_fields = ["uid", "cancelled_by"]
+
+    def validate(self, attrs):
+        reservation_status = attrs.get("reservation_status")
+        cancellation_reason = attrs.get("cancellation_reason")
+
+        if reservation_status == ReservationStatus.CANCELLED:
+            if not cancellation_reason:
+                raise serializers.ValidationError(
+                    {
+                        "cancellation_reason": "This field is required when cancelling a reservation."
+                    }
+                )
+            # Automatically set cancelled_by to SYSTEM
+            attrs["cancelled_by"] = ReservationCancelledBy.SYSTEM
+
+        return attrs
+
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        print(rep)
         rep["client"] = ClientSerializer(instance.client).data
         rep["menus"] = MenuSerializer(instance.menus.all(), many=True).data
         rep["table"] = TableSerializer(instance.table).data
@@ -102,10 +124,27 @@ class ReservationSerializer(serializers.ModelSerializer):
         return reservation
 
     def update(self, instance, validated_data):
-        menus_data = validated_data.pop("menus", None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        if menus_data is not None:
-            instance.menus.set(menus_data)
-        return instance
+        with transaction.atomic():
+            menus_data = validated_data.pop("menus", None)
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+            if menus_data is not None:
+                instance.menus.set(menus_data)
+
+            # Send notification if reservation is cancelled
+            if (
+                "reservation_status" in validated_data
+                and validated_data["reservation_status"] == ReservationStatus.CANCELLED
+            ):
+                whatsapp_number = instance.client.whatsapp_number
+                twilio_number = instance.organization.whatsapp_bots.twilio_number
+                message = (
+                    f"❌ Your reservation on 📅 {instance.reservation_date} at ⏰ {instance.reservation_time} has been cancelled.\n"
+                    f"📝**{instance.cancellation_reason}**\n"
+                    "We hope to see you again soon! 😊"
+                )
+
+                send_cancellation_notification(twilio_number, whatsapp_number, message)
+
+            return instance
