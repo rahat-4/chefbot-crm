@@ -54,7 +54,15 @@ def cancel_active_runs(openai_client: OpenAI, thread_id: str) -> None:
 
 
 def process_assistant_run(
-    media_message, openai_client: OpenAI, customer: Client, run, organization
+    openai_client: OpenAI,
+    customer: Client,
+    run,
+    organization,
+    request,
+    twilio_sid,
+    twilio_auth_token,
+    twilio_number,
+    whatsapp_number,
 ) -> Optional[str]:
     """Process the assistant run and return the response"""
     max_iterations = 30
@@ -82,7 +90,15 @@ def process_assistant_run(
         elif run_status.status == "requires_action":
             logger.info("Processing required actions")
             if not handle_required_actions(
-                media_message, openai_client, customer, run_status, organization
+                openai_client,
+                customer,
+                run_status,
+                organization,
+                request,
+                twilio_sid,
+                twilio_auth_token,
+                twilio_number,
+                whatsapp_number,
             ):
                 logger.error("Failed to handle required actions")
                 return None
@@ -128,7 +144,15 @@ def get_assistant_response(openai_client: OpenAI, thread_id: str) -> Optional[st
 
 
 def handle_required_actions(
-    media_message, openai_client: OpenAI, customer: Client, run_status, organization
+    openai_client: OpenAI,
+    customer: Client,
+    run_status,
+    organization,
+    request,
+    twilio_sid,
+    twilio_auth_token,
+    twilio_number,
+    whatsapp_number,
 ) -> bool:
     """Handle required actions and submit tool outputs"""
     if not (
@@ -147,15 +171,21 @@ def handle_required_actions(
             "get_restaurant_information": lambda: handle_get_restaurant_information(
                 call, organization
             ),
-            "get_menu_items": lambda: handle_get_menu_items(
-                media_message, call, organization
+            "send_menu_pdf": lambda: handle_send_menu_pdf(
+                organization,
+                request,
+                twilio_sid,
+                twilio_auth_token,
+                twilio_number,
+                whatsapp_number,
             ),
+            "get_menu_items": lambda: handle_get_menu_items(call, organization),
             "get_available_tables": lambda: handle_get_available_tables(
                 call, organization
             ),
             "book_table": lambda: handle_book_table(call, organization, customer),
             "add_menu_to_reservation": lambda: handle_add_menu_to_reservation(
-                media_message, call, organization
+                call, organization
             ),
             "reschedule_reservation": lambda: handle_reschedule_reservation(
                 call, organization, customer
@@ -258,7 +288,46 @@ def handle_get_restaurant_information(call, organization) -> Dict[str, Any]:
         return {"error": f"Failed to get restaurant information: {str(e)}"}
 
 
-def handle_get_menu_items(media_message, call, organization) -> Dict[str, Any]:
+def handle_send_menu_pdf(
+    organization, request, account_sid, auth_token, from_number, to_number
+) -> Optional[dict]:
+    """Handle send_menu_pdf tool call"""
+    from twilio.rest import Client
+
+    # Menu pdf file
+    menus = RestaurantDocument.objects.filter(
+        organization=organization, name="menu"
+    ).first()
+
+    menu_pdf_url = None
+    if menus and menus.file:
+        if request:
+            menu_pdf_url = request.build_absolute_uri(menus.file.url)
+        else:
+            menu_pdf_url = menus.file.url
+
+    if menu_pdf_url:
+        client = Client(account_sid, auth_token)
+
+        message = client.messages.create(
+            media_url=[menu_pdf_url],
+            from_=from_number,
+            to=to_number,
+        )
+
+        # Return a JSON-serializable dict instead of MessageInstance
+        return {
+            "sid": message.sid,
+            "status": message.status,
+            "to": message.to,
+            "from": message.from_,
+            "media_url": menu_pdf_url,
+        }
+
+    return None
+
+
+def handle_get_menu_items(call, organization) -> Dict[str, Any]:
     """Handle get_menu_items tool call"""
     try:
         args = json.loads(call.function.arguments)
@@ -317,7 +386,6 @@ def handle_get_menu_items(media_message, call, organization) -> Dict[str, Any]:
             "classification": classification.title(),
             "items": items,
             "total_items": len(items),
-            "menu_pdf": media_message,
         }
 
     except Exception as e:
@@ -596,7 +664,7 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
         return {"error": f"Booking failed: {str(e)}"}
 
 
-def handle_add_menu_to_reservation(media_message, call, organization) -> Dict[str, Any]:
+def handle_add_menu_to_reservation(call, organization) -> Dict[str, Any]:
     """Handle add_menu_to_reservation tool call"""
     try:
         args = json.loads(call.function.arguments)
@@ -667,7 +735,6 @@ def handle_add_menu_to_reservation(media_message, call, organization) -> Dict[st
 
         return {
             "status": "success" if added_items else "partial",
-            "menu_pdf": media_message,
             "reservation_uid": reservation_uid,
             "added_items": added_items,
             "failed_items": failed_items,

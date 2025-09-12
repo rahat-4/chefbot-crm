@@ -116,15 +116,6 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
 
             print("==========================", assistant.id)
 
-            # tt = update_assistant(
-            #     client=client,
-            #     assistant_id="asst_T0a0NjZRF4kkiv4EBxYDBUF7",
-            #     assistant_name=f"{validated_data['organization'].name} whatsapp reservation assistant",
-            #     instructions=instructions,
-            #     tools=tools,
-            # )
-            # print("==================================", tt)
-
             crypto_password = config("CRYPTO_PASSWORD")
 
             validated_data["hashed_key"] = hash_key(validated_data["twilio_sid"])

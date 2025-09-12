@@ -229,6 +229,14 @@ def function_tools(sales_level):
             {
                 "type": "function",
                 "function": {
+                    "name": "send_menu_pdf",
+                    "description": "Send restaurant menu as a PDF via WhatsApp",
+                    "parameters": {"type": "object", "properties": {}},
+                },
+            },
+            {
+                "type": "function",
+                "function": {
                     "name": "add_menu_to_reservation",
                     "description": "Add pre-selected menu items to a confirmed reservation using its UID.",
                     "parameters": {
