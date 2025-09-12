@@ -20,5 +20,5 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Use Gunicorn in production instead of runserver
-CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+# Use Daphne (ASGI server) instead of Gunicorn
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "core.asgi:application"]

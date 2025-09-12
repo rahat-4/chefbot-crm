@@ -9,18 +9,24 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     ports:
       - "5432:5432"
+  
+  redis:
+    image: redis:8.2.1-alpine
+    ports:
+      - "6380:6379"
 
   web:
     build:
       context: .
       dockerfile: Dockerfile
-    command: python manage.py runserver 0.0.0.0:8000
+    command: sh -c "python manage.py makemigrations && python manage.py migrate && daphne -b 0.0.0.0 -p 8000 core.asgi:application"
     volumes:
       - ./core:/app
     ports:
       - "8000:8000"
     depends_on:
       - db
+      - redis
     env_file:
       - .env
 

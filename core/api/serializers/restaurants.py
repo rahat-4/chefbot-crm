@@ -29,6 +29,8 @@ from apps.restaurant.models import (
     Reservation,
     RestaurantDocument,
     SalesLevel,
+    Client,
+    ClientMessage,
 )
 
 from apps.openAI.gpt_assistants import create_assistant, update_assistant
@@ -654,3 +656,21 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             )
 
         return instance
+
+
+class RestaurantClientMessageSerializer(serializers.ModelSerializer):
+    client = serializers.SlugRelatedField(
+        slug_field="uid",
+        queryset=Client.objects.all(),
+    )
+
+    class Meta:
+        model = ClientMessage
+        fields = [
+            "uid",
+            "client",
+            "role",
+            "message",
+            "sent_at",
+        ]
+        read_only_fields = ["uid", "sent_at"]
