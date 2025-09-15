@@ -18,14 +18,13 @@ def send_realtime_update(sender, instance, created, **kwargs):
                 "action": "created" if created else "updated",
                 "model": sender.__name__,
                 "data": {
-                    # "uid": str(instance.uid),
-                    # "name": getattr(instance.client, "name", None),
-                    "role": getattr(instance, "role", None),
-                    "message": getattr(instance, "message", None),
+                    "uid": str(instance.uid),
+                    "client": instance.client.whatsapp_number,
+                    "role": instance.role,
+                    "message": instance.message,
+                    "media_url": instance.media_url,
                     "sent_at": (
-                        getattr(instance, "sent_at", None).isoformat()
-                        if getattr(instance, "sent_at", None)
-                        else None
+                        instance.sent_at.isoformat() if instance.sent_at else None
                     ),
                 },
             },

@@ -9,11 +9,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 
 from apps.organization.choices import OrganizationType
-from apps.restaurant.models import Client
+from apps.restaurant.models import Client, ClientMessage
 
 from common.permissions import IsOwner
 
-from ..serializers.clients import ClientSerializer
+from ..serializers.clients import ClientSerializer, ClientMessageSerializer
 
 
 class ClientListView(ListAPIView):
@@ -45,3 +45,16 @@ class ClientDetailView(RetrieveUpdateDestroyAPIView):
         client_uid = self.kwargs.get("client_uid")
 
         return get_object_or_404(self.queryset, uid=client_uid)
+
+
+class ClientMessageListView(ListAPIView):
+    queryset = ClientMessage.objects.all()
+    serializer_class = ClientMessageSerializer
+
+    def get_queryset(self):
+        client_uid = self.kwargs["client_uid"]
+        client = get_object_or_404(Client, uid=client_uid)
+
+        self.queryset = self.queryset.filter(client=client)
+
+        return self.queryset.order_by("created_at")

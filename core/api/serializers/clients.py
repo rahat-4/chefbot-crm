@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.restaurant.models import Client
+from apps.restaurant.models import Client, ClientMessage
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -39,6 +39,7 @@ class ClientSerializer(serializers.ModelSerializer):
         for reservation in obj.reservations.all().order_by("-reservation_date"):
             history.append(
                 {
+                    "reservation_uid": reservation.uid,
                     "reservation_name": reservation.reservation_name,
                     "reservation_date": reservation.reservation_date,
                     "reservation_time": reservation.reservation_time,
@@ -46,3 +47,11 @@ class ClientSerializer(serializers.ModelSerializer):
                 }
             )
         return history
+
+
+class ClientMessageSerializer(serializers.ModelSerializer):
+    client = serializers.CharField(source="client.whatsapp_number", read_only=True)
+
+    class Meta:
+        model = ClientMessage
+        fields = ["uid", "client", "role", "message", "sent_at"]
