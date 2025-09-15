@@ -17,7 +17,7 @@ from apps.openAI.instructions import (
     sales_level_three_assistant_instruction,
 )
 from apps.organization.models import Organization, WhatsappBot
-from apps.restaurant.models import Reward
+from apps.restaurant.models import Client, Reward
 
 from common.crypto import decrypt_data, encrypt_data, hash_key
 
@@ -312,3 +312,26 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             )
 
         return instance
+
+
+class WhatsappClientListSerializer(serializers.ModelSerializer):
+    last_message = serializers.SerializerMethodField()
+    last_message_sent_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Client
+        fields = [
+            "uid",
+            "whatsapp_number",
+            "last_message",
+            "last_message_sent_at",
+        ]
+        read_only_fields = ["uid"]
+
+    def get_last_message(self, obj):
+        last_msg = obj.client_messages.order_by("-sent_at").first()
+        return last_msg.message if last_msg else None
+
+    def get_last_message_sent_at(self, obj):
+        last_msg = obj.client_messages.order_by("-sent_at").first()
+        return last_msg.sent_at if last_msg else None

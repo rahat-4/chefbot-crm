@@ -4,10 +4,16 @@ from ..views.whatsapp import (
     whatsapp_bot,
     RestaurantWhatsAppListView,
     RestaurantWhatsAppDetailView,
+    WhatsappClientListView,
 )
 
 urlpatterns = [
     path("/bot", whatsapp_bot, name="whatsapp-bot"),
+    path(
+        "/<uuid:whatsapp_bot_uid>/clients",
+        WhatsappClientListView.as_view(),
+        name="whatsapp.client-list",
+    ),
     path(
         "/<uuid:whatsapp_bot_uid>",
         RestaurantWhatsAppDetailView.as_view(),

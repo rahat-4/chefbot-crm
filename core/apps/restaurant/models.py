@@ -294,24 +294,13 @@ class Client(BaseModel):
         related_name="organization_clients",
     )
 
+    def save(self, *args, **kwargs):
+        if self.whatsapp_number and self.whatsapp_number.startswith("whatsapp:"):
+            self.whatsapp_number = self.whatsapp_number.replace("whatsapp:", "").strip()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"UID: {self.uid} | Whatsapp: {self.whatsapp_number}"
-
-
-class ClientMessage(BaseModel):
-    client = models.ForeignKey(
-        Client, on_delete=models.CASCADE, related_name="client_messages"
-    )
-    role = models.CharField(
-        max_length=20,
-        choices=ClientMessageRole.choices,
-        default=ClientMessageRole.ASSISTANT,
-    )
-    message = models.TextField()
-    sent_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"UID: {self.uid} | Role: {self.role}"
 
 
 class Reservation(BaseModel):
@@ -373,6 +362,32 @@ class Reservation(BaseModel):
                 self.reservation_date, self.reservation_time
             )
             return reservation_dt - timedelta(minutes=30)
+
+
+class ClientMessage(BaseModel):
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name="client_messages",
+    )
+    reservation = models.ForeignKey(
+        Reservation,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="reservation_messages",
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ClientMessageRole.choices,
+        default=ClientMessageRole.ASSISTANT,
+    )
+    message = models.TextField()
+    media_url = models.URLField(blank=True, null=True)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"UID: {self.uid} | Role: {self.role}"
 
 
 class RestaurantDocument(BaseModel):

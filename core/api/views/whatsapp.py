@@ -5,11 +5,19 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import (
+    ListAPIView,
+    RetrieveAPIView,
+    ListCreateAPIView,
+    RetrieveUpdateDestroyAPIView,
+    get_object_or_404,
+)
 
 from apps.openAI.utils import cancel_active_runs, process_assistant_run
 from apps.organization.models import Organization, WhatsappBot
-from apps.restaurant.models import Client
+from apps.restaurant.models import RestaurantDocument
+from apps.restaurant.models import Client, ClientMessage
+from apps.restaurant.choices import ClientMessageRole
 
 from common.crypto import decrypt_data
 from common.whatsapp import send_whatsapp_reply
@@ -18,6 +26,7 @@ from common.whatsapp import send_whatsapp_reply
 from ..serializers.whatsapp import (
     RestaurantWhatsAppSerializer,
     RestaurantWhatsAppDetailSerializer,
+    WhatsappClientListSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,7 +63,15 @@ def whatsapp_bot(request):
 
         # Get or create client
         customer, created = Client.objects.get_or_create(
-            whatsapp_number=whatsapp_number, organization=bot.organization
+            whatsapp_number=whatsapp_number.replace("whatsapp:", "").strip(),
+            organization=bot.organization,
+        )
+
+        # Save message history to database
+        ClientMessage.objects.create(
+            client=customer,
+            role=ClientMessageRole.USER,
+            message=incoming_message,
         )
 
         # Create thread for new customers
@@ -98,6 +115,25 @@ def whatsapp_bot(request):
             )
 
             if send_result:
+                if send_result.get("subresource_uris", {}).get("media"):
+                    # Menu pdf file
+                    menus = RestaurantDocument.objects.filter(
+                        organization=bot.organization, name="menu"
+                    ).first()
+
+                    menu_pdf_url = None
+                    if menus and menus.file:
+                        if request:
+                            menu_pdf_url = request.build_absolute_uri(menus.file.url)
+                        else:
+                            menu_pdf_url = menus.file.url
+
+                # Save message history to database
+                ClientMessage.objects.create(
+                    client=customer,
+                    message=reply,
+                    media_url=menu_pdf_url if menu_pdf_url else None,
+                )
                 logger.info(f"Reply sent successfully to {whatsapp_number}")
                 return JsonResponse({"status": "ok", "reply": reply})
             else:
@@ -139,3 +175,15 @@ class RestaurantWhatsAppDetailView(RetrieveUpdateDestroyAPIView):
     def get_object(self):
         whatsapp_bot_uid = self.kwargs["whatsapp_bot_uid"]
         return self.queryset.get(uid=whatsapp_bot_uid)
+
+
+class WhatsappClientListView(ListAPIView):
+    queryset = Client.objects.all()
+    serializer_class = WhatsappClientListSerializer
+
+    def get_queryset(self):
+        whatsapp_bot_uid = self.kwargs["whatsapp_bot_uid"]
+        whatsapp_bot = get_object_or_404(WhatsappBot, uid=whatsapp_bot_uid)
+
+        self.queryset = self.queryset.filter(organization=whatsapp_bot.organization)
+        return self.queryset.order_by("-created_at")
