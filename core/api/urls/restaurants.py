@@ -15,15 +15,9 @@ from ..views.restaurants import (
     RestaurantAnalyticsTopDishesView,
     RestaurantAnalyticsMostVisitedView,
     RestaurantAnalyticsEffectivePromotionsView,
-    RestaurantClientMessageView,
 )
 
 urlpatterns = [
-    path(
-        "/<uuid:restaurant_uid>/client-message",
-        RestaurantClientMessageView.as_view(),
-        name="restaurant.client-message",
-    ),
     # path(
     #     "/<uuid:restaurant_uid>/analytics/effective-promotions",
     #     RestaurantAnalyticsEffectivePromotionsView.as_view(),

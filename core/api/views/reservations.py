@@ -1,16 +1,21 @@
 from rest_framework.generics import (
+    ListAPIView,
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
     get_object_or_404,
 )
 
-from apps.restaurant.models import Reservation
+from apps.restaurant.models import Reservation, ClientMessage
+from apps.restaurant.choices import ClientMessageRole
 from apps.organization.choices import OrganizationType
 
 from common.permissions import IsOwner
 from common.filters import ReservationDateRangeFilter
 
-from ..serializers.reservations import ReservationSerializer
+from ..serializers.reservations import (
+    ReservationSerializer,
+    ReservationMessageSerializer,
+)
 from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -52,3 +57,18 @@ class ReservationDetailView(RetrieveUpdateDestroyAPIView):
         reservation_uid = self.kwargs.get("reservation_uid")
 
         return get_object_or_404(self.queryset, uid=reservation_uid)
+
+
+class ReservationMessageListView(ListAPIView):
+    queryset = ClientMessage.objects.all()
+    serializer_class = ReservationMessageSerializer
+    permission_classes = [IsOwner]
+    # filter_backends = [filters.OrderingFilter]
+    # ordering_fields = ["created_at"]
+    # ordering = ["created_at"]
+
+    def get_queryset(self):
+        reservation_uid = self.kwargs.get("reservation_uid")
+        reservation = get_object_or_404(Reservation, uid=reservation_uid)
+
+        return self.queryset.filter(reservation=reservation)

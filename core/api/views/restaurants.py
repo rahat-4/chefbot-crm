@@ -34,7 +34,6 @@ from ..serializers.restaurants import (
     RestaurantDashboardSerializer,
     RestaurantWhatsAppSerializer,
     RestaurantWhatsAppDetailSerializer,
-    RestaurantClientMessageSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -399,13 +398,3 @@ class RestaurantWhatsAppDetailView(RetrieveUpdateDestroyAPIView):
     def get_object(self):
         whatsapp_bot_uid = self.kwargs["whatsapp_bot_uid"]
         return self.queryset.get(uid=whatsapp_bot_uid)
-
-
-class RestaurantClientMessageView(ListCreateAPIView):
-    queryset = ClientMessage.objects.all()
-    serializer_class = RestaurantClientMessageSerializer
-    permission_classes = [IsOwner]
-
-    def get_queryset(self):
-        restaurant_uid = self.kwargs.get("restaurant_uid")
-        return self.queryset.filter(client__organization__uid=restaurant_uid)

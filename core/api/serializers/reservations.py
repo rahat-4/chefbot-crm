@@ -3,8 +3,18 @@ from django.db import transaction
 from rest_framework import serializers
 
 from apps.organization.models import Organization
-from apps.restaurant.models import Client, Menu, Reservation, RestaurantTable
-from apps.restaurant.choices import ReservationCancelledBy, ReservationStatus
+from apps.restaurant.models import (
+    Client,
+    Menu,
+    Reservation,
+    RestaurantTable,
+    ClientMessage,
+)
+from apps.restaurant.choices import (
+    ReservationCancelledBy,
+    ReservationStatus,
+    ClientMessageRole,
+)
 
 from common.whatsapp import send_cancellation_notification
 
@@ -148,3 +158,11 @@ class ReservationSerializer(serializers.ModelSerializer):
                 send_cancellation_notification(twilio_number, whatsapp_number, message)
 
             return instance
+
+
+class ReservationMessageSerializer(serializers.ModelSerializer):
+    client = serializers.CharField(source="client.whatsapp_number", read_only=True)
+
+    class Meta:
+        model = ClientMessage
+        fields = ["uid", "client", "role", "message", "media_url", "sent_at"]
