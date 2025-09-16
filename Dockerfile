@@ -23,5 +23,5 @@ RUN python core/manage.py collectstatic --noinput
 # Expose port
 EXPOSE 8000
 
-# Use Daphne (ASGI server) instead of Gunicorn
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "core.asgi:application"]
+# Use Uvicorn (ASGI server) with autoreload for development
+CMD ["uvicorn", "core.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--reload"]
