@@ -95,6 +95,9 @@ def whatsapp_bot(request):
             assistant_id=assistant_id,
         )
 
+        # Cheack media available in incoming message
+        state = {"media_available": False}
+
         # Process the run
         reply = process_assistant_run(
             openai_client,
@@ -106,6 +109,7 @@ def whatsapp_bot(request):
             twilio_auth_token,
             twilio_number,
             whatsapp_number,
+            state,
         )
 
         if reply:
@@ -115,13 +119,13 @@ def whatsapp_bot(request):
             )
 
             if send_result:
-                if send_result.get("subresource_uris", {}).get("media"):
+                menu_pdf_url = None
+                if state.get("media_available"):
                     # Menu pdf file
                     menus = RestaurantDocument.objects.filter(
                         organization=bot.organization, name="menu"
                     ).first()
 
-                    menu_pdf_url = None
                     if menus and menus.file:
                         if request:
                             menu_pdf_url = request.build_absolute_uri(menus.file.url)

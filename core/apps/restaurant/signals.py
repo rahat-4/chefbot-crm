@@ -10,8 +10,9 @@ from .models import ClientMessage
 @receiver(post_save, sender=ClientMessage)
 def send_realtime_update(sender, instance, created, **kwargs):
     channel_layer = get_channel_layer()
+    client_uid = str(instance.client.uid)
     async_to_sync(channel_layer.group_send)(
-        "realtime_updates",
+        f"realtime_updates_{client_uid}",
         {
             "type": "chat_message",
             "data": {

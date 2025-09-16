@@ -63,6 +63,7 @@ def process_assistant_run(
     twilio_auth_token,
     twilio_number,
     whatsapp_number,
+    state: Dict[str, Any],
 ) -> Optional[str]:
     """Process the assistant run and return the response"""
     max_iterations = 30
@@ -99,6 +100,7 @@ def process_assistant_run(
                 twilio_auth_token,
                 twilio_number,
                 whatsapp_number,
+                state,
             ):
                 logger.error("Failed to handle required actions")
                 return None
@@ -153,6 +155,7 @@ def handle_required_actions(
     twilio_auth_token,
     twilio_number,
     whatsapp_number,
+    state: Dict[str, Any],
 ) -> bool:
     """Handle required actions and submit tool outputs"""
     if not (
@@ -178,6 +181,7 @@ def handle_required_actions(
                 twilio_auth_token,
                 twilio_number,
                 whatsapp_number,
+                state,
             ),
             "get_menu_items": lambda: handle_get_menu_items(call, organization),
             "get_available_tables": lambda: handle_get_available_tables(
@@ -199,6 +203,8 @@ def handle_required_actions(
         if handler:
             result = handler()
             logger.info(f"{call.function.name} result-------------------->: {result}")
+            if call.function.name == "send_menu_pdf" and result:
+                media_available = True
         else:
             result = {"error": f"Unknown function: {call.function.name}"}
             logger.warning(f"Unknown function called: {call.function.name}")
@@ -289,7 +295,13 @@ def handle_get_restaurant_information(call, organization) -> Dict[str, Any]:
 
 
 def handle_send_menu_pdf(
-    organization, request, account_sid, auth_token, from_number, to_number
+    organization,
+    request,
+    account_sid,
+    auth_token,
+    from_number,
+    to_number,
+    state: Dict[str, Any],
 ) -> Optional[dict]:
     """Handle send_menu_pdf tool call"""
     from twilio.rest import Client
@@ -314,6 +326,8 @@ def handle_send_menu_pdf(
             from_=from_number,
             to=to_number,
         )
+
+        state["media_available"] = True
 
         # Return a JSON-serializable dict instead of MessageInstance
         return {
