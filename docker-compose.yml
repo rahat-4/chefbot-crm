@@ -29,6 +29,32 @@ services:
       - redis
     env_file:
       - .env
+    
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh -c "celery -A core worker -l info"
+    volumes:
+      - ./core:/app
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+  
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh -c "celery -A core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    volumes:
+      - ./core:/app
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
 
   pgadmin:
     image: dpage/pgadmin4

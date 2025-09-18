@@ -15,7 +15,14 @@ class RewardSerializer(serializers.ModelSerializer):
 class PromotionTriggerSerializer(serializers.ModelSerializer):
     class Meta:
         model = PromotionTrigger
-        fields = ["uid", "type", "days_before", "description"]
+        fields = [
+            "uid",
+            "type",
+            "days_before",
+            "inactivity_days",
+            "min_count",
+            "description",
+        ]
 
 
 class PromotionSerializer(serializers.ModelSerializer):
@@ -48,7 +55,20 @@ class PromotionSerializer(serializers.ModelSerializer):
         if trigger:
             if trigger.get("type") == "BIRTHDAY" and not trigger.get("days_before"):
                 errors["trigger"] = {
-                    "days_before": "days_before is required when type is BIRTHDAY"
+                    "days_before": "days_before is required when type is Birthday."
+                }
+
+            elif trigger.get("type") == "INACTIVITY" and not trigger.get(
+                "inactivity_days"
+            ):
+                errors["trigger"] = {
+                    "inactivity_days": "Inactivity days is required when type is Inactivity."
+                }
+            elif trigger.get("type") == "RESERVATION_COUNT" and not trigger.get(
+                "min_count"
+            ):
+                errors["trigger"] = {
+                    "min_count": "Minimum count is required when type is Reservation Count."
                 }
 
         # Validation 1: Start date must be ≤ end date

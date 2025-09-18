@@ -162,7 +162,7 @@ class Reward(BaseModel):
         max_length=20, choices=RewardType.choices, help_text="Type of the reward."
     )
     label = models.CharField(
-        max_length=100,  # Max 100 chars as per requirements
+        max_length=24,
         help_text="Label for the reward (e.g., 'Free tiramisu for pre-ordered menu').",
     )
     organization = models.ForeignKey(
@@ -190,6 +190,18 @@ class PromotionTrigger(BaseModel):
         blank=True,
         null=True,
         help_text="Number of days before the event to trigger the promotion.",
+    )
+    min_count = models.PositiveIntegerField(
+        default=0,
+        blank=True,
+        null=True,
+        help_text="Minimum reservation count to trigger the promotion.",
+    )
+    inactivity_days = models.PositiveIntegerField(
+        default=0,
+        blank=True,
+        null=True,
+        help_text="Number of inactivity days to trigger the promotion.",
     )
     description = models.TextField(
         blank=True,

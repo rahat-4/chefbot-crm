@@ -12,7 +12,7 @@ from common.crypto import decrypt_data
 logger = logging.getLogger(__name__)
 
 
-def send_whatsapp_reply(
+def send_whatsapp_message(
     to: str, message: str, twilio_sid: str, twilio_auth_token: str, twilio_number: str
 ) -> Optional[dict]:
     """
@@ -66,7 +66,7 @@ def send_cancellation_notification(twilio_number, whatsapp_number, message):
         twilio_sid = decrypt_data(bot.twilio_sid, settings.CRYPTO_PASSWORD)
 
         # Send reply via WhatsApp
-        send_result = send_whatsapp_reply(
+        send_result = send_whatsapp_message(
             whatsapp_number,
             message,
             twilio_sid,

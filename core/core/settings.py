@@ -37,6 +37,7 @@ THIRD_PARTY_APPS = [
     "drf_spectacular",
     "corsheaders",
     "channels",
+    "django_celery_beat",
 ]
 
 PROJECT_APPS = [
@@ -271,3 +272,22 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SECURE = False  # False for HTTP
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = True
+
+
+# Celery Configuration
+CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    "send-scheduled-promotions-daily": {
+        "task": "common.tasks.send_scheduled_promotions",
+        "schedule": crontab(hour=6, minute=37),
+    },
+}

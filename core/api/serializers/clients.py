@@ -54,4 +54,4 @@ class ClientMessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ClientMessage
-        fields = ["uid", "client", "role", "message", "sent_at"]
+        fields = ["uid", "client", "role", "message", "media_url", "sent_at"]

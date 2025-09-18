@@ -50,6 +50,7 @@ class ClientDetailView(RetrieveUpdateDestroyAPIView):
 class ClientMessageListView(ListAPIView):
     queryset = ClientMessage.objects.all()
     serializer_class = ClientMessageSerializer
+    pagination_class = None
 
     def get_queryset(self):
         client_uid = self.kwargs["client_uid"]

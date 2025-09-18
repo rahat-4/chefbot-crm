@@ -20,7 +20,7 @@ from apps.restaurant.models import Client, ClientMessage
 from apps.restaurant.choices import ClientMessageRole
 
 from common.crypto import decrypt_data
-from common.whatsapp import send_whatsapp_reply
+from common.whatsapp import send_whatsapp_message
 
 
 from ..serializers.whatsapp import (
@@ -114,7 +114,7 @@ def whatsapp_bot(request):
 
         if reply:
             # Send reply via WhatsApp
-            send_result = send_whatsapp_reply(
+            send_result = send_whatsapp_message(
                 whatsapp_number, reply, twilio_sid, twilio_auth_token, twilio_number
             )
 
@@ -149,7 +149,7 @@ def whatsapp_bot(request):
     # Fallback response
     fallback_message = "⚠️ Sorry, something went wrong. Please try again in a moment."
     try:
-        send_whatsapp_reply(
+        send_whatsapp_message(
             whatsapp_number,
             fallback_message,
             twilio_sid,
