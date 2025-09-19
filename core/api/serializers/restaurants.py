@@ -31,6 +31,7 @@ from apps.restaurant.models import (
     SalesLevel,
     Client,
     ClientMessage,
+    MessageTemplate,
 )
 
 from apps.openAI.gpt_assistants import create_assistant, update_assistant
@@ -656,3 +657,15 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             )
 
         return instance
+
+
+class MessageTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MessageTemplate
+        fields = [
+            "uid",
+            "name",
+            "content_sid",
+            "content_variables",
+            "content",
+        ]

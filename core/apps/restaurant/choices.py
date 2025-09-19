@@ -30,8 +30,13 @@ class RewardType(models.TextChoices):
     CUSTOM = "CUSTOM", "Custom"
 
 
-class TriggerType(models.TextChoices):
+class YearlyCategory(models.TextChoices):
+    ANNIVERSARY = "ANNIVERSARY", "Anniversary"
     BIRTHDAY = "BIRTHDAY", "Birthday"
+
+
+class TriggerType(models.TextChoices):
+    YEARLY = "YEARLY", "Yearly"
     MENU_SELECTED = "MENU_SELECTED", "Menu Selected"
     INACTIVITY = "INACTIVITY", "Inactivity"
     RESERVATION_COUNT = "RESERVATION_COUNT", "Reservation Count"

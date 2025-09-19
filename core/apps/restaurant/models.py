@@ -26,6 +26,7 @@ from .choices import (
     ClientMessageRole,
     ClientSource,
     RestaurantDocumentType,
+    YearlyCategory,
 )
 from .utils import (
     get_restaurant_media_path_prefix,
@@ -185,6 +186,13 @@ class PromotionTrigger(BaseModel):
     type = models.CharField(
         max_length=20, choices=TriggerType.choices, help_text="Type of the trigger."
     )
+    yearly_category = models.CharField(
+        max_length=20,
+        choices=YearlyCategory.choices,
+        blank=True,
+        null=True,
+        help_text="Category for yearly triggers (e.g., Birthday, Anniversary).",
+    )
     days_before = models.PositiveSmallIntegerField(
         default=0,
         blank=True,
@@ -203,11 +211,51 @@ class PromotionTrigger(BaseModel):
         null=True,
         help_text="Number of inactivity days to trigger the promotion.",
     )
-    description = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Description of the trigger (e.g., 'Birthday Promotion').",
-    )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+
+        if self.type == TriggerType.YEARLY:
+            if not self.yearly_category:
+                raise ValidationError(
+                    {
+                        "yearly_category": "yearly_category is required when type is Yearly."
+                    }
+                )
+            if (
+                self.yearly_category == YearlyCategory.BIRTHDAY
+                and self.days_before is None
+            ):
+                raise ValidationError(
+                    {
+                        "days_before": "days_before is required when yearly_category is Birthday."
+                    }
+                )
+            if self.yearly_category == YearlyCategory.ANNIVERSARY and self.days_before:
+                raise ValidationError(
+                    {
+                        "days_before": "days_before should not be set when yearly_category is Anniversary."
+                    }
+                )
+        if self.type == TriggerType.INACTIVITY:
+            if self.inactivity_days is None or self.inactivity_days <= 0:
+                raise ValidationError(
+                    {
+                        "inactivity_days": "inactivity_days must be a positive integer for Inactivity trigger."
+                    }
+                )
+
+        if self.type == TriggerType.RESERVATION_COUNT:
+            if self.min_count is None or self.min_count <= 0:
+                raise ValidationError(
+                    {
+                        "min_count": "min_count must be a positive integer for Reservation Count trigger."
+                    }
+                )
 
     def __str__(self):
         return f"UID: {self.uid} | Type: {self.type}"
@@ -216,9 +264,6 @@ class PromotionTrigger(BaseModel):
 class Promotion(BaseModel):
     title = models.CharField(
         max_length=255, unique=True, help_text="Title of the promotion."
-    )
-    message = models.TextField(
-        help_text="Message displayed in the chatbot for this promotion."
     )
     valid_from = models.DateField(
         help_text="Start date of the promotion.",
@@ -231,6 +276,11 @@ class Promotion(BaseModel):
     )
 
     # FK
+    message_template = models.ForeignKey(
+        "MessageTemplate",
+        on_delete=models.CASCADE,
+        related_name="promotion_templates",
+    )
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="promotions"
     )
@@ -423,3 +473,23 @@ class RestaurantDocument(BaseModel):
 
     def __str__(self):
         return f"{self.name} ({self.document_type})"
+
+
+class MessageTemplate(BaseModel):
+    name = models.CharField(max_length=255)
+    content_sid = models.CharField(max_length=255)
+    content_variables = ArrayField(
+        models.CharField(max_length=255), blank=True, null=True
+    )
+    content = models.TextField()
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="message_templates"
+    )
+
+    class Meta:
+        verbose_name = "Message Template"
+        verbose_name_plural = "Message Templates"
+        unique_together = ["organization", "name"]
+
+    def __str__(self):
+        return f"UID: {self.uid} | Name: {self.name} | Organization: {self.organization.name}"

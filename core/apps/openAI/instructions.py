@@ -37,7 +37,7 @@ Reservation flow
 
 Menu exploration flow
 - Always send PDF first (send_menu_pdf).
-- Category -> dietary preference -> show names only (get_menu_items).
+- Category → dietary preference → show names only (get_menu_items).
 - Provide details on request (get_menu_details).
 - If a reservation exists, offer add_menu_to_reservation.
 - After any addition, perform allergy check; if allergen found, warn and propose alternatives.
@@ -75,6 +75,8 @@ Tool sequencing
 Formatting
 - New line after greetings, between topics, around tool actions, and before questions.
 - Keep responses short, varied, and friendly.
+- For bold text in WhatsApp: use *single asterisks* (like *this*), NOT **double asterisks**.
+  - WhatsApp interprets *bold* correctly, but **bold** from Markdown will display with extra asterisks.
 """
     return instruction
 

@@ -2,7 +2,8 @@ from django.db import transaction
 
 from rest_framework import serializers
 
-from apps.restaurant.models import Promotion, PromotionTrigger, Reward
+from apps.restaurant.models import Promotion, PromotionTrigger, Reward, MessageTemplate
+from apps.restaurant.choices import TriggerType, YearlyCategory
 from apps.organization.models import Organization
 
 
@@ -18,6 +19,7 @@ class PromotionTriggerSerializer(serializers.ModelSerializer):
         fields = [
             "uid",
             "type",
+            "yearly_category",
             "days_before",
             "inactivity_days",
             "min_count",
@@ -31,13 +33,16 @@ class PromotionSerializer(serializers.ModelSerializer):
     organization = serializers.SlugRelatedField(
         queryset=Organization.objects.all(), slug_field="uid"
     )
+    message_template = serializers.SlugRelatedField(
+        queryset=MessageTemplate.objects.all(), slug_field="uid"
+    )
 
     class Meta:
         model = Promotion
         fields = [
             "uid",
             "title",
-            "message",
+            "message_template",
             "reward",
             "organization",
             "valid_from",
@@ -53,12 +58,25 @@ class PromotionSerializer(serializers.ModelSerializer):
         trigger = data.get("trigger")
 
         if trigger:
-            if trigger.get("type") == "BIRTHDAY" and not trigger.get("days_before"):
-                errors["trigger"] = {
-                    "days_before": "days_before is required when type is Birthday."
-                }
+            if trigger.get("type") == TriggerType.YEARLY:
+                if not trigger.get("yearly_category"):
+                    errors["trigger"] = {
+                        "yearly_category": "yearly_category is required when type is Yearly."
+                    }
+                if trigger.get(
+                    "yearly_category"
+                ) == YearlyCategory.BIRTHDAY and not trigger.get("days_before"):
+                    errors["trigger"] = {
+                        "days_before": "days before is required when type is Birthday."
+                    }
+                if trigger.get(
+                    "yearly_category"
+                ) == YearlyCategory.ANNIVERSARY and not trigger.get("days_before"):
+                    errors["trigger"] = {
+                        "days_before": "days before is required when type is Anniversary."
+                    }
 
-            elif trigger.get("type") == "INACTIVITY" and not trigger.get(
+            elif trigger.get("type") == TriggerType.INACTIVITY and not trigger.get(
                 "inactivity_days"
             ):
                 errors["trigger"] = {

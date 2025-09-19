@@ -11,6 +11,10 @@ from rest_framework.generics import (
 )
 from rest_framework.views import APIView
 
+from rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
+
+
 from apps.organization.models import Organization, OpeningHours, WhatsappBot
 from apps.organization.choices import OrganizationType
 from apps.restaurant.choices import MenuStatus
@@ -20,6 +24,7 @@ from apps.restaurant.models import (
     Reservation,
     RestaurantDocument,
     ClientMessage,
+    MessageTemplate,
 )
 
 from common.permissions import IsOwner
@@ -29,6 +34,7 @@ from ..serializers.restaurants import (
     RestaurantSerializer,
     RestaurantTableSerializer,
     RestaurantMenuSerializer,
+    MessageTemplateSerializer,
     RestaurantMenuAllergensSerializer,
     RestaurantDocumentSerializer,
     RestaurantDashboardSerializer,
@@ -398,3 +404,22 @@ class RestaurantWhatsAppDetailView(RetrieveUpdateDestroyAPIView):
     def get_object(self):
         whatsapp_bot_uid = self.kwargs["whatsapp_bot_uid"]
         return self.queryset.get(uid=whatsapp_bot_uid)
+
+
+class MessageTemplateListView(ListCreateAPIView):
+    queryset = MessageTemplate.objects.all()
+    serializer_class = MessageTemplateSerializer
+    permission_classes = [IsOwner]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+    ]
+    search_fields = ["name"]
+
+    def get_queryset(self):
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+
+        return self.queryset.filter(
+            organization__uid=restaurant_uid,
+            organization__organization_type=OrganizationType.RESTAURANT,
+        )
