@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 @csrf_exempt
 def whatsapp_bot(request):
     """Main WhatsApp bot endpoint"""
+    profile_name = request.POST.get("ProfileName", "")
     whatsapp_number = request.POST.get("From", "")
     incoming_message = request.POST.get("Body", "").strip()
     twilio_number = request.POST.get("To", "")
@@ -65,6 +66,7 @@ def whatsapp_bot(request):
         customer, created = Client.objects.get_or_create(
             whatsapp_number=whatsapp_number.replace("whatsapp:", "").strip(),
             organization=bot.organization,
+            defaults={"name": profile_name},
         )
 
         # Save message history to database
