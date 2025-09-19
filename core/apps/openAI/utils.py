@@ -194,6 +194,9 @@ def handle_required_actions(
             "reschedule_reservation": lambda: handle_reschedule_reservation(
                 call, organization, customer
             ),
+            "get_customer_reservations": lambda: handle_get_customer_reservations(
+                call, organization, customer
+            ),
             "cancel_reservation": lambda: handle_cancel_reservation(
                 call, organization, customer
             ),
@@ -915,6 +918,78 @@ def handle_reschedule_reservation(call, organization, customer) -> Dict[str, Any
         return {"error": f"Failed to reschedule reservation: {str(e)}"}
 
 
+# New function to get customer reservations
+def handle_get_customer_reservations(call, organization, customer) -> Dict[str, Any]:
+    """ "Handle get_customer_reservations tool call"""
+    try:
+        args = json.loads(call.function.arguments)
+        logger.info(f"Get customer reservations arguments: {args}")
+
+        reservation_date = args.get("reservation_date", None)
+        reservation_status = args.get("reservation_status", None)
+
+        if not reservation_date:
+            return {"error": "Reservation date is required"}
+
+        if is_valid_date(reservation_date):
+            reservation_date = datetime.strptime(reservation_date, "%Y-%m-%d").date()
+            logger.info(f"Parsed standard date format: {reservation_date}")
+        else:
+            # Parse natural language date
+            logger.info("Invalid standard date format, trying natural language parsing")
+            restaurant_location = get_timezone_from_country_city(
+                organization.country, organization.city
+            )
+
+            if not restaurant_location:
+                return {"error": "Could not determine restaurant timezone"}
+
+            reservation_date = parse_reservation_date(
+                reservation_date, restaurant_location
+            )
+            logger.info(f"Parsed natural language date: {reservation_date}")
+
+        # Build filter criteria
+        filter_criteria = {
+            "client": customer,
+            "organization": organization,
+            "reservation_date": reservation_date,
+            "reservation_status": reservation_status,
+        }
+
+        # Fetch reservations based on filter criteria
+        reservations = Reservation.objects.filter(**filter_criteria)
+
+        if not reservations.exists():
+            return {"error": "No reservations found for the specified criteria."}
+
+        # Return the list of reservations
+        return {
+            "status": "success",
+            "reservations": [
+                {
+                    "reservation_name": res.reservation_name,
+                    "reservation_phone": res.reservation_phone,
+                    "reservation_date": res.reservation_date,
+                    "reservation_time": res.reservation_time,
+                    "reservation_end_time": res.reservation_end_time,
+                    "reservation_reason": res.reservation_reason,
+                    "guests": f"{res.guests} guests",
+                    "notes": res.notes,
+                    "cancellation_reason": res.cancellation_reason,
+                    "menus": [menu.name for menu in res.menus.all()],
+                    "table_name": res.table_name,
+                    "reservation_uid": res.reservation_uid,
+                }
+                for res in reservations
+            ],
+        }
+
+    except Exception as e:
+        logger.error(f"Error in handle_get_customer_reservations: {str(e)}")
+        return {"error": f"Failed to get customer reservations: {str(e)}"}
+
+
 # Updated handle_cancel_reservation to work with reschedule workflow
 def handle_cancel_reservation(call, organization, customer) -> Dict[str, Any]:
     """Handle cancel_reservation tool call"""
@@ -960,6 +1035,11 @@ def handle_cancel_reservation(call, organization, customer) -> Dict[str, Any]:
                 reservation_date=reservation_date,
                 reservation_time=reservation_time,
                 organization=organization,
+                reservation_status__in=[
+                    ReservationStatus.PLACED,
+                    ReservationStatus.INPROGRESS,
+                    ReservationStatus.RESCHEDULED,
+                ],
             ).first()
 
             if not reservation:
@@ -970,6 +1050,11 @@ def handle_cancel_reservation(call, organization, customer) -> Dict[str, Any]:
                 client=customer,
                 reservation_date=reservation_date,
                 organization=organization,
+                reservation_status__in=[
+                    ReservationStatus.PLACED,
+                    ReservationStatus.INPROGRESS,
+                    ReservationStatus.RESCHEDULED,
+                ],
             )
 
             if not reservations.exists():

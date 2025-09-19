@@ -293,6 +293,36 @@ def function_tools(sales_level):
                     },
                 },
             },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_customer_reservations",
+                    "description": "Retrieve all based on reservation date (and optionally reservation time). Accept natural expressions like 'today', 'tomorrow', or 'next Saturday' and reservation status.",
+                    "parameters": {
+                        "type": "object",
+                        "required": ["reservation_date", "reservation_status"],
+                        "properties": {
+                            "reservation_date": {
+                                "type": "string",
+                                "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
+                            },
+                            "reservation_status": {
+                                "type": "string",
+                                "enum": [
+                                    "PLACED",
+                                    "INPROGRESS",
+                                    "COMPLETED",
+                                    "RESCHEDULED",
+                                    "CANCELLED",
+                                    "ABSENT",
+                                ],
+                                "description": "Filter by reservation status.",
+                            },
+                        },
+                        "additionalProperties": False,
+                    },
+                },
+            },
         ]
     else:
         tools = []  # Future expansion for other sales levels
