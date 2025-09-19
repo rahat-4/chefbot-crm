@@ -930,6 +930,8 @@ def handle_get_customer_reservations(call, organization, customer) -> Dict[str, 
 
         if not reservation_date:
             return {"error": "Reservation date is required"}
+        if not reservation_status:
+            return {"error": "Reservation status is required"}
 
         if is_valid_date(reservation_date):
             reservation_date = datetime.strptime(reservation_date, "%Y-%m-%d").date()
@@ -970,16 +972,19 @@ def handle_get_customer_reservations(call, organization, customer) -> Dict[str, 
                 {
                     "reservation_name": res.reservation_name,
                     "reservation_phone": res.reservation_phone,
-                    "reservation_date": res.reservation_date,
-                    "reservation_time": res.reservation_time,
-                    "reservation_end_time": res.reservation_end_time,
+                    "reservation_date": str(res.reservation_date),
+                    "reservation_time": str(res.reservation_time),
+                    "reservation_end_time": (
+                        str(res.reservation_end_time)
+                        if res.reservation_end_time
+                        else None
+                    ),
                     "reservation_reason": res.reservation_reason,
                     "guests": f"{res.guests} guests",
                     "notes": res.notes,
                     "cancellation_reason": res.cancellation_reason,
                     "menus": [menu.name for menu in res.menus.all()],
-                    "table_name": res.table_name,
-                    "reservation_uid": res.reservation_uid,
+                    "reservation_uid": str(res.uid),
                 }
                 for res in reservations
             ],
