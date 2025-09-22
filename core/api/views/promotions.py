@@ -4,7 +4,8 @@ from rest_framework.generics import (
     get_object_or_404,
 )
 
-from apps.restaurant.models import Promotion, MessageTemplate
+from apps.restaurant.models import Promotion
+from apps.organization.models import MessageTemplate
 from apps.organization.choices import OrganizationType
 
 from common.permissions import IsOwner

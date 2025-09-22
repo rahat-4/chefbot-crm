@@ -75,8 +75,6 @@ Tool sequencing
 Formatting
 - New line after greetings, between topics, around tool actions, and before questions.
 - Keep responses short, varied, and friendly.
-- For bold text in WhatsApp: use *single asterisks* (like *this*), NOT **double asterisks**.
-  - WhatsApp interprets *bold* correctly, but **bold** from Markdown will display with extra asterisks.
 """
     return instruction
 

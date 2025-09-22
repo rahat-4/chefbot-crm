@@ -2,9 +2,9 @@ from django.db import transaction
 
 from rest_framework import serializers
 
-from apps.restaurant.models import Promotion, PromotionTrigger, Reward, MessageTemplate
+from apps.restaurant.models import Promotion, PromotionTrigger, Reward
 from apps.restaurant.choices import TriggerType, YearlyCategory
-from apps.organization.models import Organization
+from apps.organization.models import Organization, MessageTemplate
 
 
 class RewardSerializer(serializers.ModelSerializer):

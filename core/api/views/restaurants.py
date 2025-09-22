@@ -15,7 +15,12 @@ from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
 
 
-from apps.organization.models import Organization, OpeningHours, WhatsappBot
+from apps.organization.models import (
+    Organization,
+    OpeningHours,
+    WhatsappBot,
+    MessageTemplate,
+)
 from apps.organization.choices import OrganizationType
 from apps.restaurant.choices import MenuStatus
 from apps.restaurant.models import (
@@ -24,7 +29,6 @@ from apps.restaurant.models import (
     Reservation,
     RestaurantDocument,
     ClientMessage,
-    MessageTemplate,
 )
 
 from common.permissions import IsOwner

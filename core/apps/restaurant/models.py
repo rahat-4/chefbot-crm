@@ -10,7 +10,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 
 from common.models import BaseModel
 
-from apps.organization.models import Organization
+from apps.organization.models import Organization, MessageTemplate
 from datetime import datetime, timedelta
 
 from .choices import (
@@ -32,6 +32,7 @@ from .utils import (
     get_restaurant_media_path_prefix,
     get_client_media_path_prefix,
     validate_ingredients,
+    unique_number_generator,
 )
 
 
@@ -169,13 +170,12 @@ class Reward(BaseModel):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="rewards"
     )
-    promo_code = models.CharField(max_length=100, blank=True, null=True)
+    promo_code = models.CharField(max_length=100, unique=True, blank=True, null=True)
 
     def save(self, *args, **kwargs):
         if not self.promo_code:
             type_part = self.type[:3].upper()
-            digits = f"{random.randint(0, 9999):04d}"
-            self.promo_code = f"{type_part}{digits}"
+            self.promo_code = f"{type_part}{unique_number_generator(self)}"
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -277,7 +277,7 @@ class Promotion(BaseModel):
 
     # FK
     message_template = models.ForeignKey(
-        "MessageTemplate",
+        MessageTemplate,
         on_delete=models.CASCADE,
         related_name="promotion_templates",
     )
@@ -399,6 +399,13 @@ class Reservation(BaseModel):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="organization_reservations"
     )
+    promo_code = models.ForeignKey(
+        Reward,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="reservation_promo_code",
+    )
 
     class Meta:
         verbose_name = "Reservation"
@@ -411,19 +418,20 @@ class Reservation(BaseModel):
         """
         Sets the booking_reminder_sent_at field to 30 minutes before the reservation.
         """
-        self.booking_reminder_sent_at = self.get_reminder_time()
+        # Combine reservation_date and reservation_time into a single datetime object
+        start_datetime = datetime.combine(self.reservation_date, self.reservation_time)
+
+        # Calculate and set booking_reminder_sent_at based on organization's reservation_booking_reminder
+        self.booking_reminder_sent_at = start_datetime - timedelta(
+            minutes=self.organization.reservation_booking_reminder
+        )
+
+        # Calculate and set reservation_end_time based on organization's reservation_duration
+        self.reservation_end_time = start_datetime + timedelta(
+            minutes=self.organization.reservation_duration
+        )
+
         super().save(*args, **kwargs)
-
-    def get_reminder_time(self):
-        """
-        Returns a datetime object representing 30 minutes before the reservation.
-        """
-
-        if self.reservation_date and self.reservation_time:
-            reservation_dt = datetime.combine(
-                self.reservation_date, self.reservation_time
-            )
-            return reservation_dt - timedelta(minutes=30)
 
 
 class ClientMessage(BaseModel):
@@ -473,23 +481,3 @@ class RestaurantDocument(BaseModel):
 
     def __str__(self):
         return f"{self.name} ({self.document_type})"
-
-
-class MessageTemplate(BaseModel):
-    name = models.CharField(max_length=255)
-    content_sid = models.CharField(max_length=255)
-    content_variables = ArrayField(
-        models.CharField(max_length=255), blank=True, null=True
-    )
-    content = models.TextField()
-    organization = models.ForeignKey(
-        Organization, on_delete=models.CASCADE, related_name="message_templates"
-    )
-
-    class Meta:
-        verbose_name = "Message Template"
-        verbose_name_plural = "Message Templates"
-        unique_together = ["organization", "name"]
-
-    def __str__(self):
-        return f"UID: {self.uid} | Name: {self.name} | Organization: {self.organization.name}"

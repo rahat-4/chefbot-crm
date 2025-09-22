@@ -46,3 +46,34 @@ class ChatbotTone(models.TextChoices):
 
     def __str__(self):
         return self.label
+
+
+class ReservationDuration(models.IntegerChoices):
+    HOUR_1 = 60, "1 hour"
+    HOUR_1_5 = 90, "1.5 hours"
+    HOUR_2 = 120, "2 hours"
+    HOUR_3 = 180, "3 hours"
+    HOUR_4 = 240, "4 hours"
+
+    def __str__(self):
+        return self.label
+
+
+class ReservationReminder(models.IntegerChoices):
+    MINUTES_30 = 30, "30 minutes"
+    MINUTES_45 = 45, "45 minutes"
+    HOUR_1 = 60, "1 hour"
+
+    def __str__(self):
+        return self.label
+
+
+class MessageTemplateType(models.TextChoices):
+    BIRTHDAY = "BIRTHDAY", "Birthday"
+    MENU_SELECTED = "MENU_SELECTED", "Menu Selected"
+    INACTIVITY = "INACTIVITY", "Inactivity"
+    RESERVATION_COUNT = "RESERVATION_COUNT", "Reservation Count"
+    REMINDER = "REMINDER", "Reminder"
+
+    def __str__(self):
+        return self.label

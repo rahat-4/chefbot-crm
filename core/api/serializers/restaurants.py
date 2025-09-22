@@ -20,6 +20,7 @@ from apps.organization.models import (
     OrganizationUser,
     OpeningHours,
     WhatsappBot,
+    MessageTemplate,
 )
 from apps.restaurant.models import (
     Promotion,
@@ -31,7 +32,6 @@ from apps.restaurant.models import (
     SalesLevel,
     Client,
     ClientMessage,
-    MessageTemplate,
 )
 
 from apps.openAI.gpt_assistants import create_assistant, update_assistant
@@ -70,6 +70,8 @@ class RestaurantSerializer(serializers.ModelSerializer):
             "city",
             "street",
             "zip_code",
+            "reservation_duration",
+            "reservation_booking_reminder",
             "opening_hours",
         ]
 
@@ -666,6 +668,5 @@ class MessageTemplateSerializer(serializers.ModelSerializer):
             "uid",
             "name",
             "content_sid",
-            "content_variables",
             "content",
         ]

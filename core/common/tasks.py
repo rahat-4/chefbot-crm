@@ -8,8 +8,9 @@ from django.conf import settings
 from django.db.models import Count
 from django.utils import timezone
 
-from apps.restaurant.models import Client, Promotion
-from apps.restaurant.choices import TriggerType
+from apps.organization.choices import MessageTemplateType
+from apps.restaurant.models import Client, Promotion, Reservation
+from apps.restaurant.choices import TriggerType, ReservationStatus
 
 
 from .crypto import decrypt_data
@@ -28,9 +29,14 @@ def send_whatsapp_template(
     }
 
     auth = (twilio_sid, twilio_auth_token)
-    response = requests.post(url, data=data, auth=auth)
-    response.raise_for_status()
-    return response.json()
+
+    try:
+        response = requests.post(url, data=data, auth=auth)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending message: {e}")
+        return None
 
 
 @shared_task
@@ -127,3 +133,76 @@ def send_scheduled_promotions() -> None:
                 )
 
         print(f"Processed promotion {promotion.id} with {clients.count()} clients.")
+
+
+@shared_task
+def reservation_reminder() -> None:
+    """
+    Run periodically (e.g., every 5 minutes via a cron job or Celery)
+    to send reservation reminders scheduled to be sent now.
+    """
+
+    now = timezone.now()
+    time_window_start = now - timedelta(minutes=5)
+    time_window_end = now
+
+    reservations = Reservation.objects.filter(
+        reservation_status=ReservationStatus.PLACED,
+        booking_reminder_sent=False,
+        booking_reminder_sent_at__range=(time_window_start, time_window_end),
+    )
+
+    print(f"Time------------------------------------------>{now}")
+
+    print(f"Found {reservations.count()} reservations for tomorrow.")
+
+    for reservation in reservations:
+        whatsapp_bot = getattr(reservation.organization, "whatsapp_bots", None)
+
+        if not whatsapp_bot:
+            print(f"Skipping reservation {reservation.id}: no WhatsApp bot configured.")
+            continue
+
+        # Decrypt credentials
+        twilio_auth_token = decrypt_data(
+            whatsapp_bot.twilio_auth_token, settings.CRYPTO_PASSWORD
+        )
+        twilio_sid = decrypt_data(whatsapp_bot.twilio_sid, settings.CRYPTO_PASSWORD)
+        twilio_number = whatsapp_bot.twilio_number
+
+        template_sid = reservation.organization.message_templates.filter(
+            type=MessageTemplateType.REMINDER
+        ).first()
+
+        print(f"Template SID-------------------------->{template_sid}")
+
+        if not template_sid:
+            print(
+                f"Skipping reservation {reservation.id}: no reminder template configured."
+            )
+            continue
+
+        content_variables = {
+            "1": reservation.organization.name,
+            "2": reservation.reservation_name,
+            "3": "test",
+        }
+        # "3": reservation.reservation_time.strftime("%I:%M %p"),
+
+        print(
+            f"Sending reservation reminder to  '{reservation.id}' ({reservation.reservation_name})"
+        )
+        print(f"-------------------------->{reservation.client.whatsapp_number}")
+        if reservation.client.whatsapp_number:
+            send_whatsapp_template(
+                twilio_number,
+                reservation.client.whatsapp_number,
+                twilio_sid,
+                twilio_auth_token,
+                template_sid,
+                content_variables,
+            )
+
+            # Mark reminder as sent
+            reservation.booking_reminder_sent = True
+            reservation.save(update_fields=["booking_reminder_sent"])

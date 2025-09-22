@@ -11,7 +11,6 @@ from .models import (
     Client,
     ClientMessage,
     RestaurantDocument,
-    MessageTemplate,
 )
 
 admin.site.register(Menu)
@@ -24,4 +23,3 @@ admin.site.register(RestaurantTable)
 admin.site.register(Client)
 admin.site.register(ClientMessage)
 admin.site.register(RestaurantDocument)
-admin.site.register(MessageTemplate)

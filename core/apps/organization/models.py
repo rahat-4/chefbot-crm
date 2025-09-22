@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db import models
 
 from phonenumber_field.modelfields import PhoneNumberField
+from django.contrib.postgres.fields import ArrayField
 
 from common.models import BaseModel
 
@@ -11,6 +12,9 @@ from .choices import (
     OrganizationLanguage,
     OrganizationStatus,
     OrganizationType,
+    ReservationDuration,
+    ReservationReminder,
+    MessageTemplateType,
 )
 from .managers import OrganizationQuerySet
 from .utils import get_organization_media_path_prefix
@@ -57,6 +61,14 @@ class Organization(BaseModel):
     city = models.CharField(max_length=255)
     street = models.CharField(max_length=255)
     zip_code = models.CharField(max_length=255)
+
+    # For restaurants
+    reservation_duration = models.PositiveIntegerField(
+        choices=ReservationDuration.choices, default=ReservationDuration.HOUR_1
+    )
+    reservation_booking_reminder = models.PositiveIntegerField(
+        choices=ReservationReminder.choices, default=ReservationReminder.MINUTES_30
+    )
 
     objects = OrganizationQuerySet.as_manager()
 
@@ -139,3 +151,25 @@ class WhatsappBot(BaseModel):
 
     def __str__(self):
         return f"{self.chatbot_name} - {self.uid}"
+
+
+class MessageTemplate(BaseModel):
+    name = models.CharField(max_length=255)
+    content_sid = models.CharField(max_length=255)
+    content = models.TextField()
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="message_templates"
+    )
+    type = models.CharField(
+        max_length=20,
+        choices=MessageTemplateType.choices,
+        default=MessageTemplateType.REMINDER,
+    )
+
+    class Meta:
+        verbose_name = "Message Template"
+        verbose_name_plural = "Message Templates"
+        unique_together = ["organization", "name"]
+
+    def __str__(self):
+        return f"UID: {self.uid} | Name: {self.name} | Organization: {self.organization.name}"
