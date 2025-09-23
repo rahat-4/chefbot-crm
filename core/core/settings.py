@@ -244,6 +244,11 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        "api.serializers.reservations": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "apps.openAI.utils": {
             "handlers": ["console", "file"],
             "level": "INFO",
@@ -288,7 +293,7 @@ from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     "send-scheduled-promotions-daily": {
         "task": "common.tasks.send_scheduled_promotions",
-        "schedule": crontab(hour=6, minute=37),
+        "schedule": crontab(hour=10, minute=10),
     },
     # Reservation reminder task - run every 10 minutes
     "reservation-reminder-task": {

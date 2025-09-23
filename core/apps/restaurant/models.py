@@ -235,10 +235,13 @@ class PromotionTrigger(BaseModel):
                         "days_before": "days_before is required when yearly_category is Birthday."
                     }
                 )
-            if self.yearly_category == YearlyCategory.ANNIVERSARY and self.days_before:
+            if (
+                self.yearly_category == YearlyCategory.ANNIVERSARY
+                and self.days_before is None
+            ):
                 raise ValidationError(
                     {
-                        "days_before": "days_before should not be set when yearly_category is Anniversary."
+                        "days_before": "days_before is required when yearly_category is Anniversary."
                     }
                 )
         if self.type == TriggerType.INACTIVITY:
@@ -344,6 +347,7 @@ class Client(BaseModel):
         max_length=20, choices=ClientSource.choices, default=ClientSource.WHATSAPP
     )
     date_of_birth = models.DateField(blank=True, null=True)
+    anniversary_date = models.DateField(blank=True, null=True)
     last_visit = models.DateTimeField(blank=True, null=True)
     preferences = ArrayField(models.CharField(max_length=255), blank=True, null=True)
     allergens = ArrayField(models.CharField(max_length=255), blank=True, null=True)
@@ -363,6 +367,25 @@ class Client(BaseModel):
 
     def __str__(self):
         return f"UID: {self.uid} | Whatsapp: {self.whatsapp_number}"
+
+
+class PromotionSentLog(models.Model):
+    promotion = models.ForeignKey(
+        Promotion, on_delete=models.CASCADE, related_name="sent_logs"
+    )
+    client = models.ForeignKey(
+        Client, on_delete=models.CASCADE, related_name="promotion_logs"
+    )
+    sent_at = models.DateTimeField(auto_now_add=True)
+    message_template = models.ForeignKey(
+        MessageTemplate, null=True, blank=True, on_delete=models.SET_NULL
+    )
+
+    class Meta:
+        unique_together = ("promotion", "client")
+
+    def __str__(self):
+        return f"Client: {self.client.whatsapp_number} | Trigger Type: {self.promotion.trigger.type} | Yearly Category: {self.promotion.trigger.yearly_category} | Sent At: {self.sent_at}"
 
 
 class Reservation(BaseModel):
@@ -424,11 +447,6 @@ class Reservation(BaseModel):
         # Calculate and set booking_reminder_sent_at based on organization's reservation_booking_reminder
         self.booking_reminder_sent_at = start_datetime - timedelta(
             minutes=self.organization.reservation_booking_reminder
-        )
-
-        # Calculate and set reservation_end_time based on organization's reservation_duration
-        self.reservation_end_time = start_datetime + timedelta(
-            minutes=self.organization.reservation_duration
         )
 
         super().save(*args, **kwargs)

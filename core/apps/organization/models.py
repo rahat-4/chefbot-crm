@@ -63,9 +63,6 @@ class Organization(BaseModel):
     zip_code = models.CharField(max_length=255)
 
     # For restaurants
-    reservation_duration = models.PositiveIntegerField(
-        choices=ReservationDuration.choices, default=ReservationDuration.HOUR_1
-    )
     reservation_booking_reminder = models.PositiveIntegerField(
         choices=ReservationReminder.choices, default=ReservationReminder.MINUTES_30
     )

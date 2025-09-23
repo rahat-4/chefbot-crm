@@ -23,7 +23,6 @@ class PromotionTriggerSerializer(serializers.ModelSerializer):
             "days_before",
             "inactivity_days",
             "min_count",
-            "description",
         ]
 
 

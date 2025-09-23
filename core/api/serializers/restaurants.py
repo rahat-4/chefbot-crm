@@ -70,7 +70,6 @@ class RestaurantSerializer(serializers.ModelSerializer):
             "city",
             "street",
             "zip_code",
-            "reservation_duration",
             "reservation_booking_reminder",
             "opening_hours",
         ]

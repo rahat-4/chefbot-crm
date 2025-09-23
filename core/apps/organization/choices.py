@@ -70,6 +70,7 @@ class ReservationReminder(models.IntegerChoices):
 
 class MessageTemplateType(models.TextChoices):
     BIRTHDAY = "BIRTHDAY", "Birthday"
+    ANNIVERSARY = "ANNIVERSARY", "Anniversary"
     MENU_SELECTED = "MENU_SELECTED", "Menu Selected"
     INACTIVITY = "INACTIVITY", "Inactivity"
     RESERVATION_COUNT = "RESERVATION_COUNT", "Reservation Count"

@@ -5,12 +5,12 @@ from datetime import timedelta
 from openai import OpenAI
 
 from django.conf import settings
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.organization.choices import MessageTemplateType
-from apps.restaurant.models import Client, Promotion, Reservation
-from apps.restaurant.choices import TriggerType, ReservationStatus
+from apps.restaurant.models import Client, Promotion, PromotionSentLog, Reservation
+from apps.restaurant.choices import TriggerType, ReservationStatus, YearlyCategory
 
 
 from .crypto import decrypt_data
@@ -44,7 +44,7 @@ def send_scheduled_promotions() -> None:
     """
     Run daily to check upcoming events and schedule promotions.
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     promotions = Promotion.objects.filter(
         is_enabled=True,
@@ -56,42 +56,105 @@ def send_scheduled_promotions() -> None:
 
     for promotion in promotions:
         trigger = promotion.trigger
-        whatsapp_bot = promotion.organization.whatsapp_bots
+        whatsapp_bot = getattr(promotion.organization, "whatsapp_bots", None)
 
         if not whatsapp_bot:
             print("Skipping promotion: no WhatsApp bot configured.")
             continue
 
-        # Decrypt credentials
-        openai_key = decrypt_data(whatsapp_bot.openai_key, settings.CRYPTO_PASSWORD)
-        openai_client = OpenAI(api_key=openai_key)  # might be used later
-        assistant_id = decrypt_data(whatsapp_bot.assistant_id, settings.CRYPTO_PASSWORD)
-        twilio_auth_token = decrypt_data(
-            whatsapp_bot.twilio_auth_token, settings.CRYPTO_PASSWORD
-        )
-        twilio_sid = decrypt_data(whatsapp_bot.twilio_sid, settings.CRYPTO_PASSWORD)
-        twilio_number = whatsapp_bot.twilio_number
-
-        clients = Client.objects.none()  # default empty queryset
-
-        # Handle trigger types
-        if trigger.type == TriggerType.BIRTHDAY and trigger.days_before is not None:
-            target_date = today + timedelta(days=trigger.days_before)
-            clients = Client.objects.filter(
-                date_of_birth__month=target_date.month,
-                date_of_birth__day=target_date.day,
-                organization=promotion.organization,
+        # Decrypt Twilio credentials
+        try:
+            twilio_auth_token = decrypt_data(
+                whatsapp_bot.twilio_auth_token, settings.CRYPTO_PASSWORD
             )
+            twilio_sid = decrypt_data(whatsapp_bot.twilio_sid, settings.CRYPTO_PASSWORD)
+            twilio_number = whatsapp_bot.twilio_number
+        except Exception as e:
+            print(f"Skipping promotion due to credential error: {e}")
+            continue
+
+        def send_for_clients(clients_qs, template_type):
+            template_message = promotion.organization.message_templates.filter(
+                type=template_type
+            ).first()
+            if not template_message:
+                print("No message template configured for this promotion.")
+                return
+
+            org_name = promotion.organization.name
+            reward_label = getattr(promotion.reward, "label", "")
+
+            # ✅ Exclude clients who already received this promotion
+            already_sent_ids = PromotionSentLog.objects.filter(
+                promotion=promotion
+            ).values_list("client_id", flat=True)
+
+            clients_qs = clients_qs.exclude(id__in=already_sent_ids)
+
+            for client in clients_qs:
+                to = getattr(client, "whatsapp_number", None)
+                if not to:
+                    continue
+
+                content_variables = {
+                    "1": (client.name or to),
+                    "2": org_name,
+                    "3": reward_label,
+                }
+
+                send_whatsapp_template(
+                    twilio_number,
+                    to,
+                    twilio_sid,
+                    twilio_auth_token,
+                    template_message.content_sid,
+                    content_variables,
+                )
+
+                # ✅ Track the sent promotion
+                PromotionSentLog.objects.create(
+                    promotion=promotion,
+                    client=client,
+                    message_template=template_message,
+                )
+
+        if trigger.type == TriggerType.YEARLY and trigger.days_before is not None:
+            target_date = today + timedelta(days=trigger.days_before)
+
+            if trigger.yearly_category == YearlyCategory.BIRTHDAY:
+                clients = Client.objects.filter(
+                    date_of_birth__month=target_date.month,
+                    date_of_birth__day=target_date.day,
+                    organization=promotion.organization,
+                ).only("id", "name", "whatsapp_number")
+                send_for_clients(clients, MessageTemplateType.BIRTHDAY)
+
+            elif trigger.yearly_category == YearlyCategory.ANNIVERSARY:
+                clients = Client.objects.filter(
+                    anniversary_date__month=target_date.month,
+                    anniversary_date__day=target_date.day,
+                    organization=promotion.organization,
+                ).only("id", "name", "whatsapp_number")
+                send_for_clients(clients, MessageTemplateType.ANNIVERSARY)
+
+            else:
+                print(f"Unknown yearly category: {trigger.yearly_category}")
 
         elif (
             trigger.type == TriggerType.INACTIVITY
             and trigger.inactivity_days is not None
         ):
             cutoff_date = today - timedelta(days=trigger.inactivity_days)
-            clients = Client.objects.filter(
-                last_visit__lt=cutoff_date,
-                organization=promotion.organization,
+            clients = (
+                Client.objects.filter(
+                    last_visit__lt=cutoff_date,
+                    organization=promotion.organization,
+                    reservations__reservation_status=ReservationStatus.COMPLETED,
+                )
+                .distinct()
+                .only("id", "name", "whatsapp_number")
             )
+            send_for_clients(clients, MessageTemplateType.INACTIVITY)
 
         elif (
             trigger.type == TriggerType.RESERVATION_COUNT
@@ -99,40 +162,27 @@ def send_scheduled_promotions() -> None:
         ):
             clients = (
                 Client.objects.filter(organization=promotion.organization)
-                .annotate(res_count=Count("reservations"))
+                .annotate(
+                    res_count=Count(
+                        "reservations",
+                        filter=Q(
+                            reservations__reservation_status=ReservationStatus.COMPLETED
+                        ),
+                    )
+                )
                 .filter(res_count__gte=trigger.min_count)
+                .only("id", "name", "whatsapp_number")
             )
+            send_for_clients(clients, MessageTemplateType.RESERVATION_COUNT)
+
         elif trigger.type == TriggerType.MENU_SELECTED:
-            clients = Client.objects.filter(
-                organization=promotion.organization,
+            clients = Client.objects.filter(organization=promotion.organization).only(
+                "id", "name", "whatsapp_number"
             )
+            send_for_clients(clients, MessageTemplateType.MENU_SELECTED)
+
         else:
             print(f"Unknown or improperly configured trigger: {trigger}")
-            continue
-
-        # Send messages to matched clients
-        template_sid = "HX4a57d9016c9cfd2c0739b5aa5863eac4"
-        for client in clients:
-            content_variables = {
-                "1": client.name or client.whatsapp_number,
-                "2": promotion.organization.name,
-                "3": "10",
-            }
-
-            print(
-                f"Sending promotion '{promotion.id}' to client '{client.id}' ({client.whatsapp_number})"
-            )
-            if client.whatsapp_number:
-                send_whatsapp_template(
-                    twilio_number,
-                    client.whatsapp_number,
-                    twilio_sid,
-                    twilio_auth_token,
-                    template_sid,
-                    content_variables,
-                )
-
-        print(f"Processed promotion {promotion.id} with {clients.count()} clients.")
 
 
 @shared_task
@@ -152,9 +202,7 @@ def reservation_reminder() -> None:
         booking_reminder_sent_at__range=(time_window_start, time_window_end),
     )
 
-    print(f"Time------------------------------------------>{now}")
-
-    print(f"Found {reservations.count()} reservations for tomorrow.")
+    print(f"Found {reservations.count()} reservations.")
 
     for reservation in reservations:
         whatsapp_bot = getattr(reservation.organization, "whatsapp_bots", None)
@@ -170,13 +218,11 @@ def reservation_reminder() -> None:
         twilio_sid = decrypt_data(whatsapp_bot.twilio_sid, settings.CRYPTO_PASSWORD)
         twilio_number = whatsapp_bot.twilio_number
 
-        template_sid = reservation.organization.message_templates.filter(
+        message_template = reservation.organization.message_templates.filter(
             type=MessageTemplateType.REMINDER
         ).first()
 
-        print(f"Template SID-------------------------->{template_sid}")
-
-        if not template_sid:
+        if not message_template:
             print(
                 f"Skipping reservation {reservation.id}: no reminder template configured."
             )
@@ -185,21 +231,19 @@ def reservation_reminder() -> None:
         content_variables = {
             "1": reservation.organization.name,
             "2": reservation.reservation_name,
-            "3": "test",
+            "3": reservation.reservation_time.strftime("%I:%M %p"),
         }
-        # "3": reservation.reservation_time.strftime("%I:%M %p"),
 
         print(
             f"Sending reservation reminder to  '{reservation.id}' ({reservation.reservation_name})"
         )
-        print(f"-------------------------->{reservation.client.whatsapp_number}")
         if reservation.client.whatsapp_number:
             send_whatsapp_template(
                 twilio_number,
                 reservation.client.whatsapp_number,
                 twilio_sid,
                 twilio_auth_token,
-                template_sid,
+                message_template.content_sid,
                 content_variables,
             )
 

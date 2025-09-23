@@ -1,4 +1,6 @@
+import logging
 from django.db import transaction
+from django.utils import timezone
 
 from rest_framework import serializers
 
@@ -17,6 +19,8 @@ from apps.restaurant.choices import (
 )
 
 from common.whatsapp import send_cancellation_notification
+
+logger = logging.getLogger(__name__)
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -97,7 +101,7 @@ class ReservationSerializer(serializers.ModelSerializer):
             "organization",
         ]
 
-        read_only_fields = ["uid", "cancelled_by"]
+        read_only_fields = ["uid", "cancelled_by", "reservation_end_time"]
 
     def validate(self, attrs):
         reservation_status = attrs.get("reservation_status")
@@ -128,7 +132,16 @@ class ReservationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         menus_data = validated_data.pop("menus", [])
+        reservation_status = validated_data.get("reservation_status")
         reservation = Reservation.objects.create(**validated_data)
+
+        # ✅ Auto-set reservation_end_time and client.last_visit if completed
+        if reservation_status == ReservationStatus.COMPLETED:
+            now = timezone.now()
+            reservation.reservation_end_time = now
+            reservation.save()
+            reservation.client.last_visit = now
+            reservation.client.save()
         if menus_data:
             reservation.menus.set(menus_data)
         return reservation
@@ -136,8 +149,19 @@ class ReservationSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         with transaction.atomic():
             menus_data = validated_data.pop("menus", None)
+            reservation_status = validated_data.get(
+                "reservation_status", instance.reservation_status
+            )
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
+
+            # ✅ Auto-set reservation_end_time and last_visit on COMPLETED status
+            if reservation_status == ReservationStatus.COMPLETED:
+                now = timezone.now()
+                instance.reservation_end_time = now
+                instance.client.last_visit = now
+                instance.client.save()
+
             instance.save()
             if menus_data is not None:
                 instance.menus.set(menus_data)
