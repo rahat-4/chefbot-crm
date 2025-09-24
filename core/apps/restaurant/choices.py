@@ -84,3 +84,10 @@ class RestaurantDocumentType(models.TextChoices):
     PDF = "pdf", "PDF"
     DOCX = "docx", "DOCX"
     IMAGE = "image", "Image"
+
+
+class PromotionSentLogStatus(models.TextChoices):
+    SENT = "SENT", "Sent"
+    FAILED = "FAILED", "Failed"
+    DELIVERED = "DELIVERED", "Delivered"
+    READ = "READ", "Read"

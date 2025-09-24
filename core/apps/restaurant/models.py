@@ -27,6 +27,7 @@ from .choices import (
     ClientSource,
     RestaurantDocumentType,
     YearlyCategory,
+    PromotionSentLogStatus,
 )
 from .utils import (
     get_restaurant_media_path_prefix,
@@ -369,7 +370,7 @@ class Client(BaseModel):
         return f"UID: {self.uid} | Whatsapp: {self.whatsapp_number}"
 
 
-class PromotionSentLog(models.Model):
+class PromotionSentLog(BaseModel):
     promotion = models.ForeignKey(
         Promotion, on_delete=models.CASCADE, related_name="sent_logs"
     )
@@ -379,6 +380,11 @@ class PromotionSentLog(models.Model):
     sent_at = models.DateTimeField(auto_now_add=True)
     message_template = models.ForeignKey(
         MessageTemplate, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=PromotionSentLogStatus.choices,
+        default=PromotionSentLogStatus.SENT,
     )
 
     class Meta:

@@ -15,15 +15,9 @@ from ..views.restaurants import (
     RestaurantDashboardView,
     RestaurantAnalyticsTopDishesView,
     RestaurantAnalyticsMostVisitedView,
-    RestaurantAnalyticsEffectivePromotionsView,
 )
 
 urlpatterns = [
-    # path(
-    #     "/<uuid:restaurant_uid>/analytics/effective-promotions",
-    #     RestaurantAnalyticsEffectivePromotionsView.as_view(),
-    #     name="restaurant.analytics.effective-promotions",
-    # ),
     path(
         "/<uuid:restaurant_uid>/analytics/most-visited",
         RestaurantAnalyticsMostVisitedView.as_view(),

@@ -10,7 +10,12 @@ from django.utils import timezone
 
 from apps.organization.choices import MessageTemplateType
 from apps.restaurant.models import Client, Promotion, PromotionSentLog, Reservation
-from apps.restaurant.choices import TriggerType, ReservationStatus, YearlyCategory
+from apps.restaurant.choices import (
+    TriggerType,
+    ReservationStatus,
+    YearlyCategory,
+    PromotionSentLogStatus,
+)
 
 
 from .crypto import decrypt_data
@@ -92,6 +97,13 @@ def send_scheduled_promotions() -> None:
             clients_qs = clients_qs.exclude(id__in=already_sent_ids)
 
             for client in clients_qs:
+                # ✅ Track the sent promotion
+                promotion_sent_log = PromotionSentLog.objects.create(
+                    promotion=promotion,
+                    client=client,
+                    message_template=template_message,
+                )
+
                 to = getattr(client, "whatsapp_number", None)
                 if not to:
                     continue
@@ -102,7 +114,7 @@ def send_scheduled_promotions() -> None:
                     "3": reward_label,
                 }
 
-                send_whatsapp_template(
+                whatsapp_respone = send_whatsapp_template(
                     twilio_number,
                     to,
                     twilio_sid,
@@ -111,12 +123,16 @@ def send_scheduled_promotions() -> None:
                     content_variables,
                 )
 
-                # ✅ Track the sent promotion
-                PromotionSentLog.objects.create(
-                    promotion=promotion,
-                    client=client,
-                    message_template=template_message,
-                )
+                if whatsapp_respone and whatsapp_respone.get("status") in [
+                    "queued",
+                    "sent",
+                    "delivered",
+                ]:
+                    promotion_sent_log.status = PromotionSentLogStatus.DELIVERED
+                else:
+                    promotion_sent_log.status = PromotionSentLogStatus.FAILED
+
+                promotion_sent_log.save()
 
         if trigger.type == TriggerType.YEARLY and trigger.days_before is not None:
             target_date = today + timedelta(days=trigger.days_before)

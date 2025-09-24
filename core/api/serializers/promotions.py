@@ -2,7 +2,7 @@ from django.db import transaction
 
 from rest_framework import serializers
 
-from apps.restaurant.models import Promotion, PromotionTrigger, Reward
+from apps.restaurant.models import Promotion, PromotionTrigger, PromotionSentLog, Reward
 from apps.restaurant.choices import TriggerType, YearlyCategory
 from apps.organization.models import Organization, MessageTemplate
 
@@ -165,3 +165,20 @@ class PromotionSerializer(serializers.ModelSerializer):
             instance.save()
 
             return instance
+
+
+class PromotionSentLogSerializer(serializers.ModelSerializer):
+    client_name = serializers.CharField(source="client.name", read_only=True)
+    client_whatsapp = serializers.CharField(
+        source="client.whatsapp_number", read_only=True
+    )
+
+    class Meta:
+        model = PromotionSentLog
+        fields = [
+            "uid",
+            "client_name",
+            "client_whatsapp",
+            "status",
+            "sent_at",
+        ]

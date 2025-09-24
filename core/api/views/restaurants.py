@@ -375,23 +375,6 @@ class RestaurantAnalyticsMostVisitedView(APIView):
         return Response(slots)
 
 
-class RestaurantAnalyticsEffectivePromotionsView(APIView):
-    def get(self, request, *args, **kwargs):
-        restaurant_uid = self.kwargs.get("restaurant_uid")
-
-        # Query params
-        category = request.query_params.get("category")
-        time_range = request.query_params.get("time_range")
-        start_date = request.query_params.get("start_date")
-        end_date = request.query_params.get("end_date")
-
-        reservations = Reservation.objects.filter(organization__uid=restaurant_uid)
-
-        effective_promotions = []
-
-        return Response(effective_promotions)
-
-
 class RestaurantWhatsAppListView(ListCreateAPIView):
     queryset = WhatsappBot.objects.all()
     serializer_class = RestaurantWhatsAppSerializer
