@@ -6,6 +6,7 @@ from rest_framework.generics import (
 )
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.filters import SearchFilter
 
 from apps.restaurant.models import Promotion, PromotionSentLog, Reservation
 from apps.restaurant.choices import PromotionSentLogStatus
@@ -43,9 +44,14 @@ class PromotionDetailView(RetrieveUpdateDestroyAPIView):
 
 
 class PromotionSentLogListView(ListAPIView):
-    queryset = PromotionSentLog.objects.all()
     serializer_class = PromotionSentLogSerializer
     permission_classes = [IsOwner]
+    filter_backends = [SearchFilter]
+    search_fields = ["client__name", "client__whatsapp_number"]
+
+    def get_queryset(self):
+        promotion_uid = self.kwargs.get("promotion_uid")
+        return PromotionSentLog.objects.filter(promotion__uid=promotion_uid)
 
     def list(self, request, *args, **kwargs):
         # Get the related promotion object
@@ -56,21 +62,22 @@ class PromotionSentLogListView(ListAPIView):
         except Promotion.DoesNotExist:
             return Response({"detail": "Promotion not found."}, status=404)
 
-        queryset = self.get_queryset().filter(promotion=promotion)
+        # Get filtered and searched queryset
+        queryset = self.filter_queryset(self.get_queryset())
 
-        # Compute additional statistics
-        total_send = queryset.filter(promotion=promotion).count()
-        total_failed = queryset.filter(
-            promotion=promotion, status=PromotionSentLogStatus.FAILED
-        ).count()
-        total_delivered = queryset.filter(
-            promotion=promotion, status=PromotionSentLogStatus.DELIVERED
-        ).count()
+        # Compute additional statistics based on the unfiltered logs
+        total_send = self.get_queryset().count()
+        total_failed = (
+            self.get_queryset().filter(status=PromotionSentLogStatus.FAILED).count()
+        )
+        total_delivered = (
+            self.get_queryset().filter(status=PromotionSentLogStatus.DELIVERED).count()
+        )
         total_converted = Reservation.objects.filter(
             promo_code=promotion.reward
         ).count()
 
-        # Serialize the data
+        # Serialize the filtered logs
         serializer = self.get_serializer(queryset, many=True)
 
         response_data = {
