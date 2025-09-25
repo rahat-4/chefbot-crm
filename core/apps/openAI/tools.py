@@ -112,7 +112,6 @@ def function_tools(sales_level):
                             "date",
                             "time",
                             "guests",
-                            "booking_reason",
                             "use_whatsapp",
                         ],
                         "properties": {
@@ -146,12 +145,15 @@ def function_tools(sales_level):
                             },
                             "booking_reason": {
                                 "type": "string",
-                                "minLength": 1,
                                 "description": "Occasion or reason (e.g. 'Birthday', 'Family', 'Business').",
                             },
                             "special_notes": {
                                 "type": "string",
                                 "description": "Optional notes like seating preferences, allergies, etc.",
+                            },
+                            "promo_code": {
+                                "type": "string",
+                                "description": "Optional promotional code for discounts or special offers.",
                             },
                         },
                         "additionalProperties": False,

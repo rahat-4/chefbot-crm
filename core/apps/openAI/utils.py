@@ -19,6 +19,7 @@ from apps.restaurant.models import (
     RestaurantTable,
     Menu,
     RestaurantDocument,
+    Promotion,
 )
 
 from common.timezones import (
@@ -526,9 +527,23 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
         reservation_time_str = args.get("time")
         guests = args.get("guests")
         booking_reason = args.get("booking_reason", "General dining")
+        promo_code = args.get("promo_code", "")
 
         # Extract optional data
         special_notes = args.get("special_notes", "")
+
+        promotion = None
+
+        if promo_code:
+            try:
+                promotion = Promotion.objects.filter(
+                    organization=organization, reward__promo_code=promo_code
+                ).first()
+
+                if promotion and promotion.valid_to < date.today():
+                    return {"error": "Promo code has expired."}
+            except Promotion.DoesNotExist:
+                return {"error": "Invalid promo code."}
 
         # Validate required fields
         if not all(
@@ -537,7 +552,6 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
                 reservation_date_str,
                 reservation_time_str,
                 guests,
-                booking_reason,
             ]
         ):
             missing_fields = []
@@ -549,8 +563,6 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
                 missing_fields.append("time")
             if not guests:
                 missing_fields.append("guests")
-            if not booking_reason:
-                missing_fields.append("booking_reason")
 
             return {
                 "error": f"Missing required booking information: {', '.join(missing_fields)}"
@@ -652,6 +664,7 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
                 organization=organization,
                 reservation_reason=booking_reason,
                 notes=special_notes,
+                promo_code=promotion.reward if promotion else None,
                 reservation_phone=reservation_phone,
                 reservation_status=ReservationStatus.PLACED,
             )
@@ -670,6 +683,7 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
                 "booking_reason": booking_reason,
                 "special_notes": special_notes,
                 "reservation_phone": reservation_phone,
+                "promo_code": promo_code if promotion else None,
             }
 
         except Exception as e:

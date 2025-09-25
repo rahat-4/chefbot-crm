@@ -154,6 +154,7 @@ class MessageTemplate(BaseModel):
     name = models.CharField(max_length=255)
     content_sid = models.CharField(max_length=255)
     content = models.TextField()
+    content_variables = models.JSONField(default=dict)
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="message_templates"
     )

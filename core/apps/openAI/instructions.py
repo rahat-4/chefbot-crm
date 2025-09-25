@@ -31,9 +31,10 @@ Reservation flow
 4) Confirm back: "[DATE] at [TIME] for [NUMBER]?"
 5) Check availability via get_available_tables.
 6) Ask about any special occasion.
-7) Book via book_table.
-8) Confirm details clearly.
-9) Offer menu pre-selection.
+7) Ask if they have a promo code for any offers — include it in the booking if provided.
+8) Book via book_table.
+9) Confirm details clearly.
+10) Offer menu pre-selection.
 
 Menu exploration flow
 - Always send PDF first (send_menu_pdf).

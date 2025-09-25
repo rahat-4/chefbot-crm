@@ -667,5 +667,6 @@ class MessageTemplateSerializer(serializers.ModelSerializer):
             "uid",
             "name",
             "content_sid",
+            "content_variables",
             "content",
         ]
