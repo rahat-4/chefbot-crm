@@ -41,6 +41,7 @@ from apps.openAI.instructions import (
     sales_level_two_assistant_instruction,
     sales_level_three_assistant_instruction,
 )
+from apps.restaurant.choices import RewardCategory
 
 logger = logging.getLogger(__name__)
 
@@ -579,7 +580,10 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         # Add reward data for GET requests when sales_level is 2
         if instance.sales_level == 2:
             try:
-                reward = Reward.objects.get(organization=instance.organization)
+                reward = Reward.objects.get(
+                    organization=instance.organization,
+                    reward_category=RewardCategory.SALES_LEVEL,
+                )
                 data["reward"] = RewardSerializer(reward).data
             except Reward.DoesNotExist:
                 data["reward"] = None
@@ -621,9 +625,14 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         # Handle reward based on sales_level
         elif instance.sales_level == 2 and reward_data is not None:
             # Delete existing reward and create new one
-            Reward.objects.filter(organization=instance.organization).delete()
+            Reward.objects.filter(
+                organization=instance.organization,
+                reward_category=RewardCategory.SALES_LEVEL,
+            ).delete()
             existing_reward = Reward.objects.create(
-                organization=instance.organization, **reward_data
+                organization=instance.organization,
+                reward_category=RewardCategory.SALES_LEVEL,
+                **reward_data,
             )
 
             tools = function_tools(1)
@@ -631,18 +640,25 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
                 instance.organization.name, existing_reward.type, existing_reward.label
             )
 
-            tt = update_assistant(
+            update_assistant(
                 client=client,
                 assistant_id=assistant_id,
                 assistant_name=f"{instance.organization.name} whatsapp reservation assistant",
                 instructions=instructions,
                 tools=tools,
             )
+
         elif instance.sales_level == 3:
             # Ensure a reward exists for level 3 as well
-            reward = Reward.objects.filter(organization=instance.organization).first()
+            reward = Reward.objects.filter(
+                organization=instance.organization,
+                reward_category=RewardCategory.SALES_LEVEL,
+            ).first()
             if not reward:
-                reward = Reward.objects.create(organization=instance.organization)
+                reward = Reward.objects.create(
+                    organization=instance.organization,
+                    reward_category=RewardCategory.SALES_LEVEL,
+                )
 
             tools = function_tools(1)
             instructions = sales_level_three_assistant_instruction(

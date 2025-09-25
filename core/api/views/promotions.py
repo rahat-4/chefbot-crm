@@ -6,7 +6,7 @@ from rest_framework.generics import (
 )
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.filters import SearchFilter
+from rest_framework.filters import SearchFilter, OrderingFilter
 
 from apps.restaurant.models import Promotion, PromotionSentLog, Reservation
 from apps.restaurant.choices import PromotionSentLogStatus
@@ -46,8 +46,9 @@ class PromotionDetailView(RetrieveUpdateDestroyAPIView):
 class PromotionSentLogListView(ListAPIView):
     serializer_class = PromotionSentLogSerializer
     permission_classes = [IsOwner]
-    filter_backends = [SearchFilter]
+    filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ["client__name", "client__whatsapp_number"]
+    ordering_fields = ["sent_at", "client__name"]
 
     def get_queryset(self):
         promotion_uid = self.kwargs.get("promotion_uid")

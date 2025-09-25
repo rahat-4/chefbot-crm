@@ -91,3 +91,8 @@ class PromotionSentLogStatus(models.TextChoices):
     FAILED = "FAILED", "Failed"
     DELIVERED = "DELIVERED", "Delivered"
     READ = "READ", "Read"
+
+
+class RewardCategory(models.TextChoices):
+    PROMOTION = "PROMOTION", "Promotion"
+    SALES_LEVEL = "SALES_LEVEL", "Sales Level"

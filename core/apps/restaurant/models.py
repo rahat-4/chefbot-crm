@@ -28,6 +28,7 @@ from .choices import (
     RestaurantDocumentType,
     YearlyCategory,
     PromotionSentLogStatus,
+    RewardCategory,
 )
 from .utils import (
     get_restaurant_media_path_prefix,
@@ -172,6 +173,9 @@ class Reward(BaseModel):
         Organization, on_delete=models.CASCADE, related_name="rewards"
     )
     promo_code = models.CharField(max_length=100, unique=True, blank=True, null=True)
+    reward_category = models.CharField(
+        max_length=20, choices=RewardCategory.choices, default=RewardCategory.PROMOTION
+    )
 
     def save(self, *args, **kwargs):
         if not self.promo_code:
@@ -290,7 +294,7 @@ class Promotion(BaseModel):
     )
     reward = models.ForeignKey(
         Reward,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="promotions",
         blank=True,
         null=True,
@@ -434,6 +438,13 @@ class Reservation(BaseModel):
         blank=True,
         null=True,
         related_name="reservation_promo_code",
+    )
+    sales_level_reward = models.ForeignKey(
+        Reward,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="reservation_sales_level_reward",
     )
 
     class Meta:

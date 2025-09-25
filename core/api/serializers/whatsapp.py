@@ -7,7 +7,7 @@ from django.conf import settings
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from apps.restaurant.choices import RewardType
+from apps.restaurant.choices import RewardCategory, RewardType
 
 from apps.openAI.gpt_assistants import create_assistant, update_assistant
 from apps.openAI.tools import function_tools
@@ -233,7 +233,10 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         # Add reward data for GET requests when sales_level is 2
         if instance.sales_level == 2:
             try:
-                reward = Reward.objects.get(organization=instance.organization)
+                reward = Reward.objects.get(
+                    organization=instance.organization,
+                    reward_category=RewardCategory.SALES_LEVEL,
+                )
                 data["reward"] = RewardSerializer(reward).data
             except Reward.DoesNotExist:
                 data["reward"] = None
@@ -275,9 +278,14 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         # Handle reward based on sales_level
         elif instance.sales_level == 2 and reward_data is not None:
             # Delete existing reward and create new one
-            Reward.objects.filter(organization=instance.organization).delete()
+            Reward.objects.filter(
+                organization=instance.organization,
+                reward_category=RewardCategory.SALES_LEVEL,
+            ).delete()
             existing_reward = Reward.objects.create(
-                organization=instance.organization, **reward_data
+                organization=instance.organization,
+                reward_category=RewardCategory.SALES_LEVEL,
+                **reward_data,
             )
 
             tools = function_tools(1)
@@ -294,9 +302,15 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             )
         elif instance.sales_level == 3:
             # Ensure a reward exists for level 3 as well
-            reward = Reward.objects.filter(organization=instance.organization).first()
+            reward = Reward.objects.filter(
+                organization=instance.organization,
+                reward_category=RewardCategory.SALES_LEVEL,
+            ).first()
             if not reward:
-                reward = Reward.objects.create(organization=instance.organization)
+                reward = Reward.objects.create(
+                    organization=instance.organization,
+                    reward_category=RewardCategory.SALES_LEVEL,
+                )
 
             tools = function_tools(1)
             instructions = sales_level_three_assistant_instruction(

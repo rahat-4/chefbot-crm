@@ -59,8 +59,8 @@ def whatsapp_bot(request):
         )
         twilio_sid = decrypt_data(bot.twilio_sid, settings.CRYPTO_PASSWORD)
 
-        # instruction = openai_client.beta.assistants.retrieve(assistant_id).instructions
-        # print("Instruction------------------------------->:", instruction)
+        instruction = openai_client.beta.assistants.retrieve(assistant_id).instructions
+        print("Instruction------------------------------->:", instruction)
 
         # Get or create client
         customer, created = Client.objects.get_or_create(
