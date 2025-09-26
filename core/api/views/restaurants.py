@@ -18,7 +18,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 from apps.organization.models import (
     Organization,
     OpeningHours,
-    WhatsappBot,
     MessageTemplate,
 )
 from apps.organization.choices import OrganizationType
@@ -28,7 +27,6 @@ from apps.restaurant.models import (
     Menu,
     Reservation,
     RestaurantDocument,
-    ClientMessage,
 )
 
 from common.permissions import IsOwner
@@ -42,8 +40,6 @@ from ..serializers.restaurants import (
     RestaurantMenuAllergensSerializer,
     RestaurantDocumentSerializer,
     RestaurantDashboardSerializer,
-    RestaurantWhatsAppSerializer,
-    RestaurantWhatsAppDetailSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -373,24 +369,6 @@ class RestaurantAnalyticsMostVisitedView(APIView):
                 )
 
         return Response(slots)
-
-
-class RestaurantWhatsAppListView(ListCreateAPIView):
-    queryset = WhatsappBot.objects.all()
-    serializer_class = RestaurantWhatsAppSerializer
-
-    def get_queryset(self):
-        restaurant_uid = self.kwargs.get("restaurant_uid")
-        return self.queryset.filter(organization__uid=restaurant_uid)
-
-
-class RestaurantWhatsAppDetailView(RetrieveUpdateDestroyAPIView):
-    queryset = WhatsappBot.objects.all()
-    serializer_class = RestaurantWhatsAppDetailSerializer
-
-    def get_object(self):
-        whatsapp_bot_uid = self.kwargs["whatsapp_bot_uid"]
-        return self.queryset.get(uid=whatsapp_bot_uid)
 
 
 class MessageTemplateListView(ListCreateAPIView):
