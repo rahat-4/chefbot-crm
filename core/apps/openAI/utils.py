@@ -201,6 +201,9 @@ def handle_required_actions(
             "cancel_reservation": lambda: handle_cancel_reservation(
                 call, organization, customer
             ),
+            "get_priority_menu_items": lambda: handle_get_priority_menu_items(
+                call, organization
+            ),
         }
 
         handler = function_handlers.get(call.function.name)
@@ -1136,6 +1139,47 @@ def handle_cancel_reservation(call, organization, customer) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error in handle_cancel_reservation: {str(e)}")
         return {"error": f"Failed to cancel reservation: {str(e)}"}
+
+
+def handle_get_priority_menu_items(call, organization) -> Dict[str, Any]:
+    """Handle get_priority_menu_items tool call"""
+    try:
+        # Fetch menu items marked as priority or recommended
+        priority_items_qs = (
+            Menu.objects.filter(
+                organization=organization,
+                status=MenuStatus.ACTIVE,
+                enable_upselling=True,
+            )
+            .order_by("category", "name")
+            .values("uid", "name", "upselling_priority")
+        )
+
+        if not priority_items_qs.exists():
+            return {
+                "status": "no_priority_items",
+                "message": "No priority or recommended menu items available.",
+            }
+
+        # Convert UUID to string
+        priority_items = [
+            {
+                "uid": str(item["uid"]),
+                "name": item["name"],
+                "upselling_priority": item["upselling_priority"],
+            }
+            for item in priority_items_qs
+        ]
+
+        return {
+            "status": "success",
+            "items": priority_items,
+            "total_items": len(priority_items),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in handle_get_priority_menu_items: {str(e)}")
+        return {"error": f"Failed to get priority menu items: {str(e)}"}
 
 
 def is_table_available(

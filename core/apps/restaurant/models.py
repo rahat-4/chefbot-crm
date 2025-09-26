@@ -49,7 +49,7 @@ class Menu(BaseModel):
         db_index=True, max_length=255, help_text="Title of the dish."
     )
     description = models.TextField(blank=True, null=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     ingredients = models.JSONField(
         default=dict,
         blank=True,

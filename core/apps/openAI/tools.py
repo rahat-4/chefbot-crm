@@ -325,6 +325,14 @@ def function_tools(sales_level):
                     },
                 },
             },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_priority_menu_items",
+                    "description": "Retrieve menu items that are marked as priority or recommended by the restaurant.",
+                    "parameters": {"type": "object", "properties": {}},
+                },
+            },
         ]
     else:
         tools = []  # Future expansion for other sales levels
