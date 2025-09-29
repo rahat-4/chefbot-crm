@@ -215,7 +215,11 @@ class RestaurantDashboardView(APIView):
             )
             .order_by("reservation_time")
             .first(),
-            "sales_level": organization.sales_levels.first().level,
+            "sales_level": (
+                organization.sales_levels.first().level
+                if organization.sales_levels.first()
+                else 0
+            ),
             "active_promotions": self.get_active_promotion(organization),
         }
 

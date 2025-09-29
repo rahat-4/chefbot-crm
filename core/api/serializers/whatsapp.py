@@ -15,6 +15,8 @@ from apps.openAI.instructions import (
     sales_level_one_assistant_instruction,
     sales_level_two_assistant_instruction,
     sales_level_three_assistant_instruction,
+    sales_level_four_assistant_instruction,
+    sales_level_five_assistant_instruction,
 )
 from apps.organization.models import Organization, WhatsappBot
 from apps.restaurant.models import Client, Reward, SalesLevel
@@ -22,16 +24,25 @@ from apps.restaurant.models import Client, Reward, SalesLevel
 from common.crypto import decrypt_data, encrypt_data, hash_key
 
 
-class SalesLevelSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SalesLevel
-        fields = ["name", "level", "is_reward_added", "menu_reward"]
-
-
 class RewardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reward
-        fields = ["uid", "type", "label"]
+        fields = ["uid", "type", "label", "reward_category"]
+
+
+class SalesLevelSerializer(serializers.ModelSerializer):
+    reward = RewardSerializer()
+
+    class Meta:
+        model = SalesLevel
+        fields = [
+            "name",
+            "level",
+            "reward_enabled",
+            "priority_dish_enabled",
+            "personalization_enabled",
+            "reward",
+        ]
 
 
 class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
@@ -102,17 +113,15 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             # Create Sales Level 1
             organization = validated_data["organization"]
-            sales_level, _ = SalesLevel.objects.get_or_create(
-                organization=organization,
-                level=1,
-                defaults={"name": "Reservations only"},
+            sales_level = SalesLevel.objects.create(
+                organization=organization, level=1, name="Reservation only"
             )
 
             # Create Assistant
             client = OpenAI(api_key=validated_data["openai_key"])
             assistant = create_assistant(
                 client,
-                f"{organization.name} whatsapp reservation assistant",
+                f"{organization.name} whatsapp reservation assistant with sales level 1",
                 sales_level_one_assistant_instruction(organization.name),
                 function_tools(),
             )
@@ -143,6 +152,7 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
 class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
     organization = serializers.SerializerMethodField()
     webhook_url = serializers.SerializerMethodField()
+    sales_level = SalesLevelSerializer()
 
     class Meta:
         model = WhatsappBot
@@ -172,24 +182,6 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             "webhook_url",
         ]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Get the instance to check sales_level
-        instance = kwargs.get("instance")
-
-        # For updates (PUT/PATCH), add reward field for writing
-        if self.context.get("request") and self.context["request"].method in [
-            "PUT",
-            "PATCH",
-        ]:
-            request_data = self.context["request"].data
-            sales_level = request_data.get("sales_level")
-
-            # If sales_level is 2 or instance already has sales_level 2, include reward field
-            if sales_level == 2 or (instance and instance.sales_level == 2):
-                self.fields["reward"] = RewardSerializer(write_only=True)
-
     def get_webhook_url(self, obj):
         return settings.WEBHOOK_URL
 
@@ -197,23 +189,20 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         return obj.organization.name
 
     def validate(self, attrs):
-        errors = {}
+        sales_level = attrs.get("sales_level")
+        if sales_level and isinstance(sales_level, dict):
+            level = sales_level.get("level")
+            reward = sales_level.get("reward")
 
-        # Check if sales_level is 2 but reward is missing or empty
-        if attrs.get("sales_level") == 2 and not attrs.get("reward"):
-            errors["reward"] = ["This field is required when sales_level is 2."]
-
-        # If there are errors, raise ValidationError
-        if errors:
-            raise ValidationError(errors)
+            if level == 2 and not reward:
+                raise ValidationError(
+                    {"sales_level": ["Reward is required for sales level 2."]}
+                )
 
         return attrs
 
     def to_representation(self, instance):
-        """Override to show only encrypted data (not salt) in API response"""
         data = super().to_representation(instance)
-
-        # Fields that contain encrypted data with salt
         encrypted_fields = [
             "openai_key",
             "assistant_id",
@@ -222,107 +211,153 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         ]
 
         for field in encrypted_fields:
-            field_value = data.get(field)
-            if isinstance(field_value, dict) and "data" in field_value:
-                # Show only the encrypted data part in response
-                data[field] = field_value["data"]
-
-        # Add reward data for GET requests when sales_level is 2
-        if instance.sales_level == 2:
-            try:
-                reward = Reward.objects.get(
-                    organization=instance.organization,
-                    reward_category=RewardCategory.SALES_LEVEL,
-                )
-                data["reward"] = RewardSerializer(reward).data
-            except Reward.DoesNotExist:
-                data["reward"] = None
+            value = data.get(field)
+            if isinstance(value, dict) and "data" in value:
+                data[field] = value["data"]
 
         return data
 
     def update(self, instance, validated_data):
-        """Custom update method to handle reward when sales_level changes"""
-        reward_data = validated_data.pop("reward", None)
+        sales_level_data = validated_data.pop("sales_level", None)
+        sales_level = instance.sales_level
+        organization = instance.organization
+        reward = None
 
-        # Update the instance
-        instance = super().update(instance, validated_data)
-
-        # Assistant update
-        openai_key = decrypt_data(
-            instance.openai_key,
-            settings.CRYPTO_PASSWORD,
-        )
-        assistant_id = decrypt_data(
-            instance.assistant_id,
-            settings.CRYPTO_PASSWORD,
-        )
+        # Decrypt sensitive data
+        openai_key = decrypt_data(instance.openai_key, settings.CRYPTO_PASSWORD)
+        assistant_id = decrypt_data(instance.assistant_id, settings.CRYPTO_PASSWORD)
         client = OpenAI(api_key=openai_key)
 
-        if instance.sales_level == 1:
-            tools = function_tools()
-            instructions = sales_level_one_assistant_instruction(
-                instance.organization.name
+        if sales_level_data:
+            level = sales_level_data.get("level", sales_level.level)
+            reward_enabled = sales_level_data.get("reward_enabled", False)
+            priority_dish_enabled = sales_level_data.get("priority_dish_enabled", False)
+            personalization_enabled = sales_level_data.get(
+                "personalization_enabled", False
             )
+            reward_data = sales_level_data.get("reward")
 
-            tt = update_assistant(
-                client=client,
-                assistant_id=assistant_id,
-                assistant_name=f"{instance.organization.name} whatsapp reservation assistant",
-                instructions=instructions,
-                tools=tools,
-            )
-
-        # Handle reward based on sales_level
-        elif instance.sales_level == 2 and reward_data is not None:
-            # Delete existing reward and create new one
-            Reward.objects.filter(
-                organization=instance.organization,
-                reward_category=RewardCategory.SALES_LEVEL,
-            ).delete()
-            existing_reward = Reward.objects.create(
-                organization=instance.organization,
-                reward_category=RewardCategory.SALES_LEVEL,
-                **reward_data,
-            )
-
-            tools = function_tools()
-            instructions = sales_level_two_assistant_instruction(
-                instance.organization.name, existing_reward.type, existing_reward.label
-            )
-
-            tt = update_assistant(
-                client=client,
-                assistant_id=assistant_id,
-                assistant_name=f"{instance.organization.name} whatsapp reservation assistant",
-                instructions=instructions,
-                tools=tools,
-            )
-        elif instance.sales_level == 3:
-            # Ensure a reward exists for level 3 as well
-            reward = Reward.objects.filter(
-                organization=instance.organization,
-                reward_category=RewardCategory.SALES_LEVEL,
-            ).first()
-            if not reward:
-                reward = Reward.objects.create(
-                    organization=instance.organization,
-                    reward_category=RewardCategory.SALES_LEVEL,
+            # Handle reward (create new if needed)
+            if level in [2, 3, 4] and (reward_enabled or reward_data):
+                reward = self._replace_reward(organization, reward_data)
+                sales_level.reward = reward
+            elif level == 2 and not reward_data:
+                raise ValidationError(
+                    {"sales_level": ["Reward is required for sales level 2."]}
                 )
 
-            tools = function_tools()
-            instructions = sales_level_three_assistant_instruction(
-                instance.organization.name, reward.type, reward.label
+            # Set name and other properties
+            sales_level.level = level
+            sales_level.name = self._get_sales_level_name(level)
+            sales_level.reward_enabled = reward_enabled
+            sales_level.save()
+
+            validated_data["sales_level"] = sales_level
+
+            # Update Assistant
+            self._update_assistant(
+                client,
+                assistant_id,
+                organization.name,
+                level,
+                reward,
+                reward_enabled,
+                priority_dish_enabled,
+                personalization_enabled,
             )
 
-            tt = update_assistant(
-                client=client,
-                assistant_id=assistant_id,
-                assistant_name=f"{instance.organization.name} whatsapp reservation assistant",
-                instructions=instructions,
-                tools=tools,
-            )
+        return super().update(instance, validated_data)
 
-        return instance
+    def _replace_reward(self, organization, reward_data):
+        """Delete old reward and create new one"""
+        Reward.objects.filter(
+            organization=organization,
+            reward_category=RewardCategory.SALES_LEVEL,
+        ).delete()
+
+        return Reward.objects.create(
+            organization=organization,
+            reward_category=RewardCategory.SALES_LEVEL,
+            **reward_data,
+        )
+
+    def _update_assistant(
+        self,
+        client,
+        assistant_id,
+        org_name,
+        level,
+        reward=None,
+        reward_enabled=False,
+        priority_dish_enabled=False,
+        personalization_enabled=False,
+    ):
+        tools = function_tools()
+
+        if level == 1:
+            instructions = sales_level_one_assistant_instruction(org_name)
+        elif level == 2 and reward:
+            instructions = sales_level_two_assistant_instruction(
+                org_name, reward.type, reward.label
+            )
+        elif level == 3:
+            instructions = (
+                sales_level_three_assistant_instruction(
+                    org_name, reward.type, reward.label
+                )
+                if reward and reward_enabled
+                else sales_level_three_assistant_instruction(org_name)
+            )
+        elif level == 4:
+            if reward and reward_enabled and priority_dish_enabled:
+                instructions = sales_level_four_assistant_instruction(
+                    org_name, reward.type, reward.label, priority_dish_enabled
+                )
+            elif reward and reward_enabled:
+                instructions = sales_level_four_assistant_instruction(
+                    org_name, reward.type, reward.label
+                )
+            elif priority_dish_enabled:
+                instructions = sales_level_four_assistant_instruction(
+                    org_name, priority_dish_enabled
+                )
+            else:
+                instructions = sales_level_four_assistant_instruction(org_name)
+        elif level == 5:
+            if priority_dish_enabled and personalization_enabled:
+                instructions = sales_level_five_assistant_instruction(
+                    org_name, priority_dish_enabled, personalization_enabled
+                )
+            elif priority_dish_enabled:
+                instructions = sales_level_five_assistant_instruction(
+                    org_name, priority_dish_enabled
+                )
+            elif personalization_enabled:
+                instructions = sales_level_five_assistant_instruction(
+                    org_name, personalization_enabled
+                )
+            else:
+                instructions = sales_level_five_assistant_instruction(org_name)
+        else:
+            return  # No update for unknown level
+
+        update_assistant(
+            client=client,
+            assistant_id=assistant_id,
+            assistant_name=f"{org_name} WhatsApp assistant - Level {level}",
+            instructions=instructions,
+            tools=tools,
+        )
+
+    def _get_sales_level_name(self, level):
+        """Returns friendly name for sales level"""
+        return {
+            1: "Reservations Only",
+            2: "Menu Rewards",
+            3: "Dish Prioritization",
+            4: "Personalized Recommendations",
+            5: "Promotions Module",
+        }.get(level, f"Sales Level {level}")
 
 
 class WhatsappClientListSerializer(serializers.ModelSerializer):

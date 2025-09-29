@@ -125,9 +125,7 @@ class WhatsappBot(BaseModel):
     max_response_length = models.PositiveIntegerField(default=150)
     sales_level = models.OneToOneField(
         "restaurant.SalesLevel",
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
+        on_delete=models.CASCADE,
         related_name="whatsapp_sales_levels",
     )
     openai_key = models.JSONField(default=dict)

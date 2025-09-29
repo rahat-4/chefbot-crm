@@ -332,6 +332,22 @@ def function_tools():
                 "parameters": {"type": "object", "properties": {}},
             },
         },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_personalized_recommendations",
+                "description": "Get personalized dish recommendations based on customer's past orders and preferences.",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_available_promotions",
+                "description": "Fetch current promotions, discounts, or special offers available at the restaurant.",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        },
     ]
 
     return tools

@@ -4,6 +4,8 @@ import time
 from datetime import datetime, date, timedelta
 from openai import OpenAI
 from typing import Dict, Any, Optional, List
+from collections import Counter
+
 
 from django.core import serializers
 
@@ -202,6 +204,12 @@ def handle_required_actions(
                 call, organization, customer
             ),
             "get_priority_menu_items": lambda: handle_get_priority_menu_items(
+                call, organization
+            ),
+            "get_personalized_recommendations": lambda: handle_get_personalized_recommendations(
+                call, organization, customer
+            ),
+            "get_available_promotions": lambda: handle_get_available_promotions(
                 call, organization
             ),
         }
@@ -1139,6 +1147,118 @@ def handle_cancel_reservation(call, organization, customer) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error in handle_cancel_reservation: {str(e)}")
         return {"error": f"Failed to cancel reservation: {str(e)}"}
+
+
+def handle_get_personalized_recommendations(
+    call, organization, customer
+) -> Dict[str, Any]:
+    """Handle get_personalized_recommendations tool call"""
+    try:
+        args = json.loads(call.function.arguments)
+        logger.info(f"Get personalized recommendations arguments: {args}")
+
+        limit = args.get("limit", 5)
+
+        # Fetch customer's past reservations
+        past_reservations = Reservation.objects.filter(
+            client=customer,
+            organization=organization,
+            reservation_status=ReservationStatus.COMPLETED,
+        ).prefetch_related("menus")
+
+        if not past_reservations.exists():
+            return {
+                "status": "no_past_reservations",
+                "message": "No past reservations found for personalized recommendations.",
+            }
+
+        # Aggregate menu item frequencies
+        item_counter = Counter()
+        for reservation in past_reservations:
+            for menu_item in reservation.menus.all():
+                item_counter[menu_item] += 1
+
+        if not item_counter:
+            return {
+                "status": "no_recommendations",
+                "message": "No menu items found in past orders for recommendations.",
+            }
+
+        # Get the most common items
+        most_common_items = item_counter.most_common(limit)
+
+        recommendations = [
+            {
+                "name": item.name,
+                "times_ordered": count,
+                "uid": str(item.uid),
+            }
+            for item, count in most_common_items
+        ]
+
+        return {
+            "status": "success",
+            "recommendations": recommendations,
+            "total_recommendations": len(recommendations),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in handle_get_personalized_recommendations: {str(e)}")
+        return {"error": f"Failed to get personalized recommendations: {str(e)}"}
+
+
+def handle_get_available_promotions(call, organization) -> Dict[str, Any]:
+    """Handle get_available_promotions tool call"""
+    try:
+        # Fetch active promotions for the organization
+        promotions_qs = Promotion.objects.filter(
+            organization=organization,
+            valid_from__lte=date.today(),
+            valid_to__gte=date.today(),
+            is_enabled=True,
+        ).select_related("reward")
+
+        if not promotions_qs.exists():
+            return {
+                "status": "no_promotions",
+                "message": "No active promotions available at the moment.",
+            }
+
+        # Format promotions for display
+        promotions = []
+        for promo in promotions_qs:
+            promotions.append(
+                {
+                    "uid": str(promo.uid),
+                    "valid_from": str(promo.valid_from),
+                    "valid_to": str(promo.valid_to),
+                    "reward": (
+                        {
+                            "type": (
+                                promo.reward.get_type_display()
+                                if promo.reward
+                                else None
+                            ),
+                            "label": promo.reward.label if promo.reward else None,
+                            "promo_code": (
+                                promo.reward.promo_code if promo.reward else None
+                            ),
+                        }
+                        if promo.reward
+                        else None
+                    ),
+                }
+            )
+
+        return {
+            "status": "success",
+            "promotions": promotions,
+            "total_promotions": len(promotions),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in handle_get_available_promotions: {str(e)}")
+        return {"error": f"Failed to get available promotions: {str(e)}"}
 
 
 def handle_get_priority_menu_items(call, organization) -> Dict[str, Any]:

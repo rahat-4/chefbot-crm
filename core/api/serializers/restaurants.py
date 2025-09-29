@@ -327,9 +327,11 @@ class ReservationSlimSerializer(serializers.ModelSerializer):
 
 
 class ReservationPromotionSlimSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source="message_template.type", read_only=True)
+
     class Meta:
         model = Promotion
-        fields = ["uid", "title", "message"]
+        fields = ["uid", "title", "type"]
 
 
 class RestaurantDashboardSerializer(serializers.Serializer):

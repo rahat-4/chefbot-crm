@@ -125,11 +125,14 @@ class SalesLevel(BaseModel):
     personalization_enabled = models.BooleanField(
         default=False, help_text="Enable personalized recommendations (Level 4+)."
     )
-    is_reward_added = models.BooleanField(
+    reward_enabled = models.BooleanField(
         default=False, help_text="Indicates if a reward has been added for this level."
     )
-    # Menu reward for Level 2+
-    menu_reward = models.ForeignKey(
+    priority_dish_enabled = models.BooleanField(
+        default=False, help_text="Enable priority dish promotion (Level 3+)."
+    )
+    # Reward for Level 2+
+    reward = models.ForeignKey(
         "Reward",
         on_delete=models.SET_NULL,
         null=True,
@@ -149,13 +152,13 @@ class SalesLevel(BaseModel):
     def clean(self):
         super().clean()
 
-        # Level 2+ requires menu reward
-        if self.level >= 2 and not self.menu_reward:
-            raise ValidationError("Menu reward is required for level 2 and above.")
+        # Level 2+ requires reward
+        if self.level >= 2 and not self.reward:
+            raise ValidationError("Reward is required for level 2 and above.")
 
-        # Level 1 shouldn't have menu reward
-        if self.level == 1 and self.menu_reward:
-            raise ValidationError("Level 1 should not have a menu reward.")
+        # Level 1 shouldn't have reward
+        if self.level == 1 and self.reward:
+            raise ValidationError("Level 1 should not have a reward.")
 
         # Personalization only for level 4+
         if self.personalization_enabled and self.level < 4:
@@ -187,7 +190,7 @@ class Reward(BaseModel):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.get_type_display()}: {self.label}"
+        return f"{self.get_type_display()}: {self.label} , Category: {self.reward_category}"
 
 
 class PromotionTrigger(BaseModel):
