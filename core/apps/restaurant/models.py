@@ -125,6 +125,9 @@ class SalesLevel(BaseModel):
     personalization_enabled = models.BooleanField(
         default=False, help_text="Enable personalized recommendations (Level 4+)."
     )
+    is_reward_added = models.BooleanField(
+        default=False, help_text="Indicates if a reward has been added for this level."
+    )
     # Menu reward for Level 2+
     menu_reward = models.ForeignKey(
         "Reward",

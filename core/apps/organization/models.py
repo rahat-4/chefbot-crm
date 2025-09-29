@@ -123,7 +123,13 @@ class WhatsappBot(BaseModel):
     )
     chatbot_custom_tone = models.TextField(blank=True, null=True)
     max_response_length = models.PositiveIntegerField(default=150)
-    sales_level = models.PositiveSmallIntegerField(default=1)
+    sales_level = models.OneToOneField(
+        "restaurant.SalesLevel",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="whatsapp_sales_levels",
+    )
     openai_key = models.JSONField(default=dict)
     assistant_id = models.JSONField(default=dict)
     twilio_sid = models.JSONField(default=dict)

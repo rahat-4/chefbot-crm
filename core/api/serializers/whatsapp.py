@@ -17,9 +17,15 @@ from apps.openAI.instructions import (
     sales_level_three_assistant_instruction,
 )
 from apps.organization.models import Organization, WhatsappBot
-from apps.restaurant.models import Client, Reward
+from apps.restaurant.models import Client, Reward, SalesLevel
 
 from common.crypto import decrypt_data, encrypt_data, hash_key
+
+
+class SalesLevelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalesLevel
+        fields = ["name", "level", "is_reward_added", "menu_reward"]
 
 
 class RewardSerializer(serializers.ModelSerializer):
@@ -32,6 +38,7 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
     organization = serializers.SerializerMethodField()
     organization_uid = serializers.CharField(write_only=True)
     webhook_url = serializers.SerializerMethodField()
+    sales_level = SalesLevelSerializer(read_only=True)
 
     class Meta:
         model = WhatsappBot
@@ -51,27 +58,20 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
             "organization_uid",
             "webhook_url",
         ]
-
         read_only_fields = ["uid", "sales_level", "assistant_id"]
 
     def to_representation(self, instance):
-        """Override to show only encrypted data (not salt) in API response"""
         data = super().to_representation(instance)
-
-        # Fields that contain encrypted data with salt
         encrypted_fields = [
             "openai_key",
             "assistant_id",
             "twilio_sid",
             "twilio_auth_token",
         ]
-
         for field in encrypted_fields:
-            field_value = data.get(field)
-            if isinstance(field_value, dict) and "data" in field_value:
-                # Show only the encrypted data part in response
-                data[field] = field_value["data"]
-
+            value = data.get(field)
+            if isinstance(value, dict) and "data" in value:
+                data[field] = value["data"]
         return data
 
     def get_webhook_url(self, obj):
@@ -82,6 +82,7 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         org_uid = attrs.get("organization_uid")
+
         try:
             organization = Organization.objects.get(uid=org_uid)
         except Organization.DoesNotExist:
@@ -96,41 +97,45 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        validated_data.pop("organization_uid", None)
+
         with transaction.atomic():
-            validated_data.pop("organization_uid")
-
-            # Assistant creation
-            client = OpenAI(api_key=validated_data["openai_key"])
-
-            tools = function_tools()
-            instructions = sales_level_one_assistant_instruction(
-                validated_data["organization"].name
+            # Create Sales Level 1
+            organization = validated_data["organization"]
+            sales_level, _ = SalesLevel.objects.get_or_create(
+                organization=organization,
+                level=1,
+                defaults={"name": "Reservations only"},
             )
 
+            # Create Assistant
+            client = OpenAI(api_key=validated_data["openai_key"])
             assistant = create_assistant(
                 client,
-                f"{validated_data['organization'].name} whatsapp reservation assistant",
-                instructions,
-                tools,
+                f"{organization.name} whatsapp reservation assistant",
+                sales_level_one_assistant_instruction(organization.name),
+                function_tools(),
             )
 
+            # Encrypt sensitive fields
             crypto_password = config("CRYPTO_PASSWORD")
-
-            validated_data["hashed_key"] = hash_key(validated_data["twilio_sid"])
-            validated_data["openai_key"] = encrypt_data(
-                validated_data["openai_key"], crypto_password
+            validated_data.update(
+                {
+                    "hashed_key": hash_key(validated_data["twilio_sid"]),
+                    "openai_key": encrypt_data(
+                        validated_data["openai_key"], crypto_password
+                    ),
+                    "assistant_id": encrypt_data(assistant.id, crypto_password),
+                    "twilio_sid": encrypt_data(
+                        validated_data["twilio_sid"], crypto_password
+                    ),
+                    "twilio_auth_token": encrypt_data(
+                        validated_data["twilio_auth_token"], crypto_password
+                    ),
+                    "twilio_number": f"whatsapp:{validated_data['twilio_number']}",
+                    "sales_level": sales_level,
+                }
             )
-            validated_data["assistant_id"] = encrypt_data(assistant.id, crypto_password)
-            validated_data["twilio_sid"] = encrypt_data(
-                validated_data["twilio_sid"], crypto_password
-            )
-            validated_data["twilio_auth_token"] = encrypt_data(
-                validated_data["twilio_auth_token"], crypto_password
-            )
-            validated_data["twilio_number"] = (
-                f"whatsapp:{validated_data['twilio_number']}"
-            )
-            validated_data["sales_level"] = 1
 
             return super().create(validated_data)
 
