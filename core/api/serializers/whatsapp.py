@@ -102,7 +102,7 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
             # Assistant creation
             client = OpenAI(api_key=validated_data["openai_key"])
 
-            tools = function_tools(1)
+            tools = function_tools()
             instructions = sales_level_one_assistant_instruction(
                 validated_data["organization"].name
             )
@@ -113,8 +113,6 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
                 instructions,
                 tools,
             )
-
-            print("==========================", assistant.id)
 
             crypto_password = config("CRYPTO_PASSWORD")
 
@@ -187,14 +185,11 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             if sales_level == 2 or (instance and instance.sales_level == 2):
                 self.fields["reward"] = RewardSerializer(write_only=True)
 
-        # For GET requests, add reward field for reading
-        if self.context.get("request") and self.context["request"].method in ["GET"]:
-            # For GET requests, check instance sales_level (not request data)
-            if instance and instance.sales_level == 2:
-                self.fields["reward"] = RewardSerializer(read_only=True)
-
     def get_webhook_url(self, obj):
         return settings.WEBHOOK_URL
+
+    def get_organization(self, obj):
+        return obj.organization.name
 
     def validate(self, attrs):
         errors = {}
@@ -208,9 +203,6 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             raise ValidationError(errors)
 
         return attrs
-
-    def get_organization(self, obj):
-        return obj.organization.name
 
     def to_representation(self, instance):
         """Override to show only encrypted data (not salt) in API response"""
@@ -262,7 +254,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         client = OpenAI(api_key=openai_key)
 
         if instance.sales_level == 1:
-            tools = function_tools(1)
+            tools = function_tools()
             instructions = sales_level_one_assistant_instruction(
                 instance.organization.name
             )
@@ -288,7 +280,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
                 **reward_data,
             )
 
-            tools = function_tools(1)
+            tools = function_tools()
             instructions = sales_level_two_assistant_instruction(
                 instance.organization.name, existing_reward.type, existing_reward.label
             )
@@ -312,7 +304,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
                     reward_category=RewardCategory.SALES_LEVEL,
                 )
 
-            tools = function_tools(1)
+            tools = function_tools()
             instructions = sales_level_three_assistant_instruction(
                 instance.organization.name, reward.type, reward.label
             )
