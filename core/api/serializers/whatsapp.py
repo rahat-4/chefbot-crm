@@ -153,6 +153,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
     organization = serializers.SerializerMethodField()
     webhook_url = serializers.SerializerMethodField()
     sales_level = SalesLevelSerializer()
+    reward = RewardSerializer(source="sales_level.reward", read_only=True)
 
     class Meta:
         model = WhatsappBot
@@ -170,6 +171,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             "twilio_number",
             "organization",
             "webhook_url",
+            "reward",
         ]
         read_only_fields = [
             "uid",
@@ -180,6 +182,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             "twilio_number",
             "organization",
             "webhook_url",
+            "reward",
         ]
 
     def get_webhook_url(self, obj):
@@ -250,6 +253,8 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             sales_level.level = level
             sales_level.name = self._get_sales_level_name(level)
             sales_level.reward_enabled = reward_enabled
+            sales_level.priority_dish_enabled = priority_dish_enabled
+            sales_level.personalization_enabled = personalization_enabled
             sales_level.save()
 
             validated_data["sales_level"] = sales_level

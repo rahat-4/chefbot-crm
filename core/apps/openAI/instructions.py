@@ -1,3 +1,6 @@
+EMOJI_GUIDELINE = "- Use relevant, contextual emojis (🍽️ menu, 📅 date, ⏰ time, 🎉 occasion, ✅ confirmations, ☎️ contact). Keep to 1–2 per message and never replace key details with emojis."
+
+
 def sales_level_one_assistant_instruction(restaurant_name):
     instruction = f"""
 You are a Senior Customer Support Officer at {restaurant_name}.
@@ -5,6 +8,7 @@ You are a Senior Customer Support Officer at {restaurant_name}.
 Voice
 - Warm, concise, human; use contractions.
 - Add line breaks between topics and before questions. Keep chunks short.
+{EMOJI_GUIDELINE}
 
 Always
 - Accept natural date phrases ("today", "tomorrow", "next Friday") and pass them exactly to the backend.
@@ -65,6 +69,7 @@ Tool order
 Formatting
 - Line breaks after greetings, between topics, around tool actions, and before questions.
 - Keep responses short and friendly.
+{EMOJI_GUIDELINE}
 """
     return instruction
 
@@ -89,6 +94,7 @@ Menu PDF and flows
 
 Tools and formatting
 - Same tool order as Level 1. Keep messages short, human, and easy to scan.
+{EMOJI_GUIDELINE}
 """
     return instruction
 
@@ -160,6 +166,7 @@ Failure handling (priority)
 
 Formatting
 - Line breaks between topics and before questions; keep responses concise and friendly.
+{EMOJI_GUIDELINE}
 """
     return instruction
 
@@ -275,9 +282,10 @@ Failure handling (priority)
 11) cancel_reservation 
 """
 
-    instruction += """ 
+    instruction += f""" 
 Formatting 
 - Line breaks between topics and before questions; keep responses concise and friendly. 
+{EMOJI_GUIDELINE}
 """
 
     return instruction
@@ -292,6 +300,7 @@ You are a Senior Customer Support Officer at {restaurant_name}, Sales Level 5.
 Voice
 * Warm, concise, human; use contractions.
 * Add line breaks between topics and before questions. Keep chunks short.
+* {EMOJI_GUIDELINE[2:]}
 
 Always
 * Accept natural date phrases ("today", "tomorrow", "next Friday") and pass them exactly to the backend.
@@ -383,6 +392,7 @@ Tool order
 Formatting
 * Line breaks after greetings, between topics, around tool actions, and before questions.
 * Keep responses short and friendly.
+* {EMOJI_GUIDELINE[2:]}
 """
 
     return instruction

@@ -10,6 +10,7 @@ from rest_framework.generics import (
     RetrieveAPIView,
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
+    RetrieveUpdateAPIView,
     get_object_or_404,
 )
 
@@ -59,9 +60,6 @@ def whatsapp_bot(request):
         )
         twilio_sid = decrypt_data(bot.twilio_sid, settings.CRYPTO_PASSWORD)
 
-        instruction = openai_client.beta.assistants.retrieve(assistant_id).instructions
-        print("Instruction------------------------------->:", instruction)
-
         # Get or create client
         customer, created = Client.objects.get_or_create(
             whatsapp_number=whatsapp_number.replace("whatsapp:", "").strip(),
@@ -86,6 +84,9 @@ def whatsapp_bot(request):
         # Check for active runs and cancel them if necessary
         cancel_active_runs(openai_client, customer.thread_id)
 
+        instructions = openai_client.beta.assistants.retrieve(assistant_id).instructions
+        print("Instructions------------------------------->:", instructions)
+
         # Add user message to thread
         openai_client.beta.threads.messages.create(
             thread_id=customer.thread_id, role="user", content=incoming_message
@@ -95,6 +96,7 @@ def whatsapp_bot(request):
         run = openai_client.beta.threads.runs.create(
             thread_id=customer.thread_id,
             assistant_id=assistant_id,
+            instructions=instructions,
         )
 
         # Cheack media available in incoming message
@@ -174,7 +176,7 @@ class RestaurantWhatsAppListView(ListCreateAPIView):
         return self.queryset.filter(organization__in=organizations)
 
 
-class RestaurantWhatsAppDetailView(RetrieveUpdateDestroyAPIView):
+class RestaurantWhatsAppDetailView(RetrieveUpdateAPIView):
     queryset = WhatsappBot.objects.all()
     serializer_class = RestaurantWhatsAppDetailSerializer
 
