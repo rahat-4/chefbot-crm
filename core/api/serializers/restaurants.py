@@ -115,6 +115,24 @@ class RestaurantTableSerializer(serializers.ModelSerializer):
             "status",
         ]
 
+    def validate_name(self, value):
+        """Validate table name uniqueness within the same restaurant"""
+        restaurant = self.context.get("view").kwargs.get("restaurant_uid")
+        if not restaurant:
+            return value
+
+        queryset = RestaurantTable.objects.filter(
+            organization__uid=restaurant, name=value
+        )
+        if self.instance:
+            queryset = queryset.exclude(uid=self.instance.uid)
+
+        if queryset.exists():
+            raise serializers.ValidationError(
+                "A table with this name already exists in this restaurant."
+            )
+        return value
+
 
 class RestaurantMenuSerializer(serializers.ModelSerializer):
     recommended_combinations = serializers.SlugRelatedField(

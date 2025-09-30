@@ -765,7 +765,7 @@ def handle_add_menu_to_reservation(call, organization) -> Dict[str, Any]:
             except Menu.DoesNotExist:
                 failed_items.append(f"Menu item '{menu_name}' not found or unavailable")
                 logger.warning(
-                    f"Menu item '{menu_name}' not found for organization {organization}"
+                    f"Menu item '{menu_name}' not found for restaurant {organization}"
                 )
 
         if not added_items and failed_items:

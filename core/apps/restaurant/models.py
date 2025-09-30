@@ -319,7 +319,7 @@ class Promotion(BaseModel):
 
 
 class RestaurantTable(BaseModel):
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
     capacity = models.PositiveSmallIntegerField()
     category = models.CharField(
         max_length=20, choices=TableCategory.choices, default=TableCategory.SINGLE
@@ -339,9 +339,10 @@ class RestaurantTable(BaseModel):
     class Meta:
         verbose_name = "Table"
         verbose_name_plural = "Tables"
+        unique_together = ["organization", "name"]
 
     def __str__(self):
-        return f"UID: {self.uid} | Name: {self.name}"
+        return f"UID: {self.uid} | Name: {self.name} | Restaurant: {self.organization.name}"
 
 
 class Client(BaseModel):

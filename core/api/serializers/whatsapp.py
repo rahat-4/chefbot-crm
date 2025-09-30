@@ -97,7 +97,7 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
         try:
             organization = Organization.objects.get(uid=org_uid)
         except Organization.DoesNotExist:
-            raise ValidationError({"organization_uid": "Invalid organization UID."})
+            raise ValidationError({"organization_uid": "Invalid restaurant UID."})
 
         if WhatsappBot.objects.filter(organization=organization).exists():
             raise ValidationError(

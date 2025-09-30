@@ -129,7 +129,7 @@ class RestaurantMenuListView(ListCreateAPIView):
         restaurant = Organization.objects.filter(uid=restaurant_uid).first()
 
         if not restaurant:
-            raise ValidationError({"organization": "Invalid organization."})
+            raise ValidationError({"organization": "Invalid restaurant."})
 
         serializer.save(organization=restaurant)
 
@@ -203,7 +203,7 @@ class RestaurantDashboardView(APIView):
         organization = Organization.objects.filter(uid=restaurant_uid).first()
 
         if not organization:
-            return Response({"error": "Invalid organization."}, status=404)
+            return Response({"error": "Invalid restaurant."}, status=404)
 
         # Gather dashboard data
         data = {
