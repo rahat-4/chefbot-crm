@@ -7,7 +7,7 @@ from django.contrib.postgres.fields import ArrayField
 
 from common.models import BaseModel
 
-from .choices import UserGender, UserStatus, UserType
+from .choices import UserGender, UserStatus, UserType, WebsiteLanguage
 from .managers import UserManager
 from .utils import get_user_media_path_prefix
 
@@ -43,7 +43,11 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
         choices=UserType.choices,
         default=UserType.OWNER,
     )
-
+    language = models.CharField(
+        max_length=20,
+        choices=WebsiteLanguage.choices,
+        default=WebsiteLanguage.ENGLISH,
+    )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)

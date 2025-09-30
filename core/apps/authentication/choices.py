@@ -18,3 +18,11 @@ class UserType(models.TextChoices):
     ADMIN = "ADMIN", "Admin"
     OWNER = "OWNER", "Owner"
     CUSTOMER = "CUSTOMER", "Customer"
+
+
+class WebsiteLanguage(models.TextChoices):
+    ENGLISH = "ENGLISH", "English"
+    GERMAN = "GERMAN", "German"
+
+    def __str__(self):
+        return self.label

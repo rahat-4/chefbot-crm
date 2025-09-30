@@ -5,6 +5,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from phonenumber_field.modelfields import PhoneNumberField
 
@@ -456,6 +457,7 @@ class Reservation(BaseModel):
     class Meta:
         verbose_name = "Reservation"
         verbose_name_plural = "Reservations"
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"UID: {self.uid} | Date: {self.reservation_date} | Time: {self.reservation_time} | Restaurant: {self.organization.name} | Status: {self.reservation_status}"
@@ -465,10 +467,15 @@ class Reservation(BaseModel):
         Sets the booking_reminder_sent_at field to 30 minutes before the reservation.
         """
         # Combine reservation_date and reservation_time into a single datetime object
-        start_datetime = datetime.combine(self.reservation_date, self.reservation_time)
+        naive_datetime = datetime.combine(self.reservation_date, self.reservation_time)
+
+        # Make timezone-aware
+        aware_datetime = timezone.make_aware(
+            naive_datetime, timezone.get_current_timezone()
+        )
 
         # Calculate and set booking_reminder_sent_at based on organization's reservation_booking_reminder
-        self.booking_reminder_sent_at = start_datetime - timedelta(
+        self.booking_reminder_sent_at = aware_datetime - timedelta(
             minutes=self.organization.reservation_booking_reminder
         )
 

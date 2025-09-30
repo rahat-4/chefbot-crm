@@ -19,15 +19,6 @@ class OrganizationSummarySerializer(serializers.ModelSerializer):
 
 class MeSerializer(serializers.ModelSerializer):
     organizations = serializers.SerializerMethodField()
-    language = serializers.CharField(
-        source="organization_users.first.organization.organization_language",
-        read_only=True,
-    )
-    organization_language = serializers.CharField(
-        required=False,
-        write_only=True,
-        allow_blank=True,
-    )
 
     class Meta:
         model = User
@@ -41,7 +32,6 @@ class MeSerializer(serializers.ModelSerializer):
             "gender",
             "date_of_birth",
             "language",
-            "organization_language",
             "organizations",
         ]
         read_only_fields = ["uid", "phone", "email", "organizations"]
@@ -49,18 +39,6 @@ class MeSerializer(serializers.ModelSerializer):
     def get_organizations(self, obj):
         organizations = Organization.objects.for_user(obj).restaurants()
         return OrganizationSummarySerializer(organizations, many=True).data
-
-    def update(self, instance, validated_data):
-        organization_language = validated_data.pop("organization_language", None)
-
-        if organization_language:
-            org_user = instance.organization_users.first()
-            if org_user and org_user.organization:
-                org = org_user.organization
-                org.organization_language = organization_language
-                org.save()
-
-        return super().update(instance, validated_data)
 
 
 class UserRegistrationSessionSerializer(serializers.ModelSerializer):
