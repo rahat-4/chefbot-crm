@@ -142,9 +142,6 @@ class WhatsappBot(BaseModel):
 
     class Meta:
         unique_together = (
-            "organization",
-            "openai_key",
-            "assistant_id",
             "twilio_sid",
             "twilio_auth_token",
             "twilio_number",

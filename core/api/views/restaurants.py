@@ -58,13 +58,6 @@ class RestaurantListView(ListCreateAPIView):
             organization_type=OrganizationType.RESTAURANT,
         )
 
-    # def get_permissions(self):
-    #     if self.request.method == "POST":
-    #         self.permission_classes = [IsOwner]
-    #     else:
-    #         self.permission_classes = [IsAdmin]
-    #     return super().get_permissions()
-
 
 class RestaurantDetailView(RetrieveUpdateAPIView):
     queryset = Organization.objects.all()
