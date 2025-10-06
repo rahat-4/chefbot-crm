@@ -144,7 +144,11 @@ def function_tools():
                         },
                         "booking_reason": {
                             "type": "string",
-                            "description": "Occasion or reason (e.g. 'Birthday', 'Family', 'Business').",
+                            "description": "Occasion or reason (e.g. 'Birthday', 'Anniversary', 'Family', 'Business').",
+                        },
+                        "reason_for_visit_date": {
+                            "type": "string",
+                            "description": "Date of the occasion or reason for the visit.",
                         },
                         "special_notes": {
                             "type": "string",

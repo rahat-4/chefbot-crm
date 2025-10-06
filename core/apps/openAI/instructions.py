@@ -89,10 +89,13 @@ Reservation workflow
 4) Confirm back: "[DATE] at [TIME] for [NUMBER], correct?"
 5) Check availability via get_available_tables.
 6) Ask about any special occasion.
-7) Ask if they have a promo code; include it if provided.
-8) Book via book_table.
-9) Confirm details clearly.
-10) Offer menu pre-selection (send_menu_pdf).
+7) If they mention "birthday" or "anniversary", ask similar like that: "Is that your [birthday/anniversary]?"
+    - If YES: Add booking date to reason_for_visit_date.
+    - If NO: Proceed normally.
+8) Ask if they have a promo code; include it if provided.
+9) Book via book_table.
+10) Confirm details clearly.
+11) Offer menu pre-selection (send_menu_pdf).
 """.strip()
     )
 

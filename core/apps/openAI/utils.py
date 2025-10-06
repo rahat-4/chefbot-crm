@@ -539,13 +539,26 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
         reservation_date_str = args.get("date")
         reservation_time_str = args.get("time")
         guests = args.get("guests")
-        booking_reason = args.get("booking_reason", "General dining")
+        booking_reason = args.get("booking_reason", "")
+        reason_for_visit_date = args.get("reason_for_visit_date", "")
         promo_code = args.get("promo_code", "")
 
         # Extract optional data
         special_notes = args.get("special_notes", "")
 
         promotion = None
+
+        if booking_reason and reason_for_visit_date:
+            reason_for_visit_date = datetime.strptime(
+                reason_for_visit_date, "%Y-%m-%d"
+            ).date()
+
+            if booking_reason.lower() == "birthday":
+                customer.date_of_birth = reason_for_visit_date
+            elif booking_reason.lower() == "anniversary":
+                customer.anniversary_date = reason_for_visit_date
+
+            customer.save()
 
         if promo_code:
             try:

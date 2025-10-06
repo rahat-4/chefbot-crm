@@ -221,6 +221,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://194.164.77.123:8000",
     "http://194.164.77.123:3000",
     "https://crm.chef-bot.de",
+    "http://crm.chef-bot.de",
     "https://api.chef-bot.de",
     "https://chef-bot.de",
 ]
@@ -230,6 +231,7 @@ ACCESS_CONTROL_ALLOW_ORIGIN = [
     "http://194.164.77.123:8000",
     "http://194.164.77.123:3000",
     "https://crm.chef-bot.de",
+    "http://crm.chef-bot.de",
     "https://api.chef-bot.de",
     "https://chef-bot.de",
 ]

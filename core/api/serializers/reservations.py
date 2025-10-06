@@ -62,8 +62,12 @@ class TableSerializer(serializers.ModelSerializer):
 
 
 class ReservationSerializer(serializers.ModelSerializer):
-    client = serializers.SlugRelatedField(
-        queryset=Client.objects.all(), slug_field="uid"
+    client_name = serializers.CharField(write_only=True)
+    client_phone = serializers.CharField(write_only=True)
+    client_allergens = serializers.ListField(
+        child=serializers.CharField(max_length=255),
+        required=False,
+        write_only=True,
     )
     menus = serializers.SlugRelatedField(
         queryset=Menu.objects.all(),
@@ -77,11 +81,15 @@ class ReservationSerializer(serializers.ModelSerializer):
     organization = serializers.SlugRelatedField(
         queryset=Organization.objects.all(), slug_field="uid"
     )
+    client = ClientSerializer(read_only=True)
 
     class Meta:
         model = Reservation
         fields = [
             "uid",
+            "client_name",
+            "client_phone",
+            "client_allergens",
             "client",
             "reservation_name",
             "reservation_phone",
@@ -121,7 +129,6 @@ class ReservationSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        rep["client"] = ClientSerializer(instance.client).data
         rep["menus"] = MenuSerializer(instance.menus.all(), many=True).data
         rep["table"] = TableSerializer(instance.table).data
         rep["organization"] = {
@@ -131,24 +138,73 @@ class ReservationSerializer(serializers.ModelSerializer):
         return rep
 
     def create(self, validated_data):
-        menus_data = validated_data.pop("menus", [])
-        reservation_status = validated_data.get("reservation_status")
-        reservation = Reservation.objects.create(**validated_data)
+        with transaction.atomic():
+            client_name = validated_data.pop("client_name")
+            client_phone = validated_data.pop("client_phone")
+            client_allergens = validated_data.pop("client_allergens", [])
 
-        # ✅ Auto-set reservation_end_time and client.last_visit if completed
-        if reservation_status == ReservationStatus.COMPLETED:
-            now = timezone.now()
-            reservation.reservation_end_time = now
-            reservation.save()
-            reservation.client.last_visit = now
-            reservation.client.save()
-        if menus_data:
-            reservation.menus.set(menus_data)
-        return reservation
+            client, created = Client.objects.get_or_create(
+                whatsapp_number=client_phone,
+                organization=validated_data["organization"],
+                defaults={
+                    "name": client_name,
+                    "phone": client_phone,
+                    "allergens": client_allergens,
+                },
+            )
+
+            if not created:
+                updated = False
+                if client.name != client_name:
+                    client.name = client_name
+                    updated = True
+                if client.allergens != client_allergens:
+                    client.allergens = client_allergens
+                    updated = True
+                if updated:
+                    client.save()
+
+            validated_data["client"] = client
+
+            # Reservation data
+            menus_data = validated_data.pop("menus", [])
+            reservation_status = validated_data.get("reservation_status")
+            reservation = Reservation.objects.create(**validated_data)
+
+            # ✅ Auto-set reservation_end_time and client.last_visit if completed
+            if reservation_status == ReservationStatus.COMPLETED:
+                now = timezone.now()
+                reservation.reservation_end_time = now
+                reservation.save()
+                reservation.client.last_visit = now
+                reservation.client.save()
+            if menus_data:
+                reservation.menus.set(menus_data)
+            return reservation
 
     def update(self, instance, validated_data):
         with transaction.atomic():
             menus_data = validated_data.pop("menus", None)
+            client_name = validated_data.pop("client_name", None)
+            client_allergens = validated_data.pop("client_allergens", None)
+
+            if any([client_name, client_allergens is not None]):
+                client = instance.client
+                updated = False
+
+                if client_name and client.name != client_name:
+                    client.name = client_name
+                    updated = True
+
+                if (
+                    client_allergens is not None
+                    and client.allergens != client_allergens
+                ):
+                    client.allergens = client_allergens
+                    updated = True
+
+                if updated:
+                    client.save()
             reservation_status = validated_data.get(
                 "reservation_status", instance.reservation_status
             )
