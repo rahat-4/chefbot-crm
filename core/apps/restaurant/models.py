@@ -30,6 +30,8 @@ from .choices import (
     YearlyCategory,
     PromotionSentLogStatus,
     RewardCategory,
+    OrganizationLanguage,
+    ChatbotTone,
 )
 from .utils import (
     get_restaurant_media_path_prefix,
@@ -402,6 +404,12 @@ class PromotionSentLog(BaseModel):
     class Meta:
         unique_together = ("promotion", "client")
 
+    def is_expired(self):
+        return (
+            self.promotion.valid_to < timezone.now().date()
+            or self.status == PromotionSentLogStatus.USED
+        )
+
     def __str__(self):
         return f"Client: {self.client.whatsapp_number} | Trigger Type: {self.promotion.trigger.type} | Yearly Category: {self.promotion.trigger.yearly_category} | Sent At: {self.sent_at}"
 
@@ -530,3 +538,45 @@ class RestaurantDocument(BaseModel):
 
     def __str__(self):
         return f"{self.name} ({self.document_type})"
+
+
+class WhatsappBot(BaseModel):
+    chatbot_name = models.CharField(max_length=255)
+    chatbot_language = models.CharField(
+        max_length=20,
+        choices=OrganizationLanguage.choices,
+        default=OrganizationLanguage.ENGLISH,
+    )
+    chatbot_tone = models.CharField(
+        max_length=20,
+        choices=ChatbotTone.choices,
+        default=ChatbotTone.CASUAL,
+    )
+    chatbot_custom_tone = models.TextField(blank=True, null=True)
+    max_response_length = models.PositiveIntegerField(default=150)
+    sales_level = models.OneToOneField(
+        "restaurant.SalesLevel",
+        on_delete=models.CASCADE,
+        related_name="whatsapp_sales_levels",
+    )
+    openai_key = models.JSONField(default=dict)
+    assistant_id = models.JSONField(default=dict)
+    twilio_sid = models.JSONField(default=dict)
+    twilio_auth_token = models.JSONField(default=dict)
+    twilio_number = models.CharField(max_length=100)
+    hashed_key = models.CharField(max_length=500)
+
+    # OneToOneField
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="whatsapp_bots"
+    )
+
+    class Meta:
+        unique_together = (
+            "twilio_sid",
+            "twilio_auth_token",
+            "twilio_number",
+        )
+
+    def __str__(self):
+        return f"{self.chatbot_name} - {self.uid}"

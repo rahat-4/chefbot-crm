@@ -64,9 +64,22 @@ services:
       - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
       - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
     ports:
-      - "5050:80"
+      - "5050:81"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+
+  nginx:
+    image: nginx:stable
+    ports:
+      - "8080:80"
+      - "8443:443"
+    depends_on:
+      - web
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./core/media:/media
+      - ./core/staticfiles:/static
+    restart: always
 
 volumes:
   postgres_data:

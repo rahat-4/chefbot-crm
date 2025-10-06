@@ -5,7 +5,7 @@ from typing import Optional
 from django.conf import settings
 from django.http import JsonResponse
 
-from apps.organization.models import WhatsappBot
+from apps.restaurant.models import WhatsappBot
 
 from common.crypto import decrypt_data
 

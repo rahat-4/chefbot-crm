@@ -26,28 +26,6 @@ class DaysOfWeek(models.TextChoices):
         return self.label
 
 
-class OrganizationLanguage(models.TextChoices):
-    ENGLISH = "ENGLISH", "English"
-    GERMAN = "GERMAN", "German"
-    FRENCH = "FRENCH", "French"
-    SPANISH = "SPANISH", "Spanish"
-    ITALIAN = "ITALIAN", "Italian"
-    ARABIC = "ARABIC", "Arabic"
-
-    def __str__(self):
-        return self.label
-
-
-class ChatbotTone(models.TextChoices):
-    CASUAL = "CASUAL", "Casual"
-    FORMAL = "FORMAL", "Formal"
-    HUMOROUS = "HUMOROUS", "Humorous"
-    PROFESSIONAL = "PROFESSIONAL", "Professional"
-
-    def __str__(self):
-        return self.label
-
-
 class ReservationDuration(models.IntegerChoices):
     HOUR_1 = 60, "1 hour"
     HOUR_1_5 = 90, "1.5 hours"
@@ -75,6 +53,18 @@ class MessageTemplateType(models.TextChoices):
     INACTIVITY = "INACTIVITY", "Inactivity"
     RESERVATION_COUNT = "RESERVATION_COUNT", "Reservation Count"
     REMINDER = "REMINDER", "Reminder"
+
+    def __str__(self):
+        return self.label
+
+
+class OrganizationLanguage(models.TextChoices):
+    ENGLISH = "ENGLISH", "English"
+    GERMAN = "GERMAN", "German"
+    FRENCH = "FRENCH", "French"
+    SPANISH = "SPANISH", "Spanish"
+    ITALIAN = "ITALIAN", "Italian"
+    ARABIC = "ARABIC", "Arabic"
 
     def __str__(self):
         return self.label

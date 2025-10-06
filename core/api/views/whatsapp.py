@@ -15,8 +15,8 @@ from rest_framework.generics import (
 )
 
 from apps.openAI.utils import cancel_active_runs, process_assistant_run
-from apps.organization.models import Organization, WhatsappBot
-from apps.restaurant.models import RestaurantDocument
+from apps.organization.models import Organization
+from apps.restaurant.models import RestaurantDocument, WhatsappBot
 from apps.restaurant.models import Client, ClientMessage
 from apps.restaurant.choices import ClientMessageRole
 
@@ -96,7 +96,7 @@ def whatsapp_bot(request):
         run = openai_client.beta.threads.runs.create(
             thread_id=customer.thread_id,
             assistant_id=assistant_id,
-            instructions=instructions,
+            # instructions=instructions,
         )
 
         # Cheack media available in incoming message

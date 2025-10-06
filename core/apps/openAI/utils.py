@@ -10,6 +10,7 @@ from collections import Counter
 from django.core import serializers
 
 from apps.restaurant.choices import (
+    PromotionSentLogStatus,
     ReservationStatus,
     TableStatus,
     MenuStatus,
@@ -22,6 +23,7 @@ from apps.restaurant.models import (
     Menu,
     RestaurantDocument,
     Promotion,
+    PromotionSentLog,
 )
 
 from common.timezones import (
@@ -556,6 +558,18 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
             except Promotion.DoesNotExist:
                 return {"error": "Invalid promo code."}
 
+            try:
+                already_used = PromotionSentLog.objects.filter(
+                    client=customer,
+                    promotion=promotion,
+                    status=PromotionSentLogStatus.USED,
+                ).exists()
+                if already_used:
+                    return {"error": "Promo code has already been used."}
+            except Exception as e:
+                logger.error(f"Error checking promo code usage: {str(e)}")
+                return {"error": "Error validating promo code."}
+
         # Validate required fields
         if not all(
             [
@@ -679,6 +693,11 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
                 reservation_phone=reservation_phone,
                 reservation_status=ReservationStatus.PLACED,
             )
+
+            if promotion:
+                PromotionSentLog.objects.filter(
+                    client=customer, promotion=promotion
+                ).update(status=PromotionSentLogStatus.USED)
 
             return {
                 "status": "success",

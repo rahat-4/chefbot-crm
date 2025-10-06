@@ -12,6 +12,7 @@ from .models import (
     ClientMessage,
     RestaurantDocument,
     PromotionSentLog,
+    WhatsappBot,
 )
 
 admin.site.register(Menu)
@@ -25,3 +26,4 @@ admin.site.register(Client)
 admin.site.register(ClientMessage)
 admin.site.register(RestaurantDocument)
 admin.site.register(PromotionSentLog)
+admin.site.register(WhatsappBot)

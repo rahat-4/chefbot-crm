@@ -9,7 +9,12 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.organization.choices import MessageTemplateType
-from apps.restaurant.models import Client, Promotion, PromotionSentLog, Reservation
+from apps.restaurant.models import (
+    Client,
+    Promotion,
+    PromotionSentLog,
+    Reservation,
+)
 from apps.restaurant.choices import (
     TriggerType,
     ReservationStatus,
@@ -91,7 +96,12 @@ def send_scheduled_promotions() -> None:
 
             # ✅ Exclude clients who already received this promotion
             already_sent_ids = PromotionSentLog.objects.filter(
-                promotion=promotion
+                promotion=promotion,
+                status__in=[
+                    PromotionSentLogStatus.SENT,
+                    PromotionSentLogStatus.DELIVERED,
+                    PromotionSentLogStatus.READ,
+                ],
             ).values_list("client_id", flat=True)
 
             clients_qs = clients_qs.exclude(id__in=already_sent_ids)

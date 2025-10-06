@@ -12,11 +12,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config("SECRET_KEY")
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = ["194.164.77.123", "127.0.0.1", "localhost"]
+ALLOWED_HOSTS = [
+    "194.164.77.123",
+    "127.0.0.1",
+    "localhost",
+    "crm.chef-bot.de",
+    "api.chef-bot.de",
+    "chef-bot.de",
+]
 
 
 DJANGO_APPS = [
@@ -211,8 +220,19 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://194.164.77.123:8000",
     "http://194.164.77.123:3000",
+    "https://crm.chef-bot.de",
+    "https://api.chef-bot.de",
+    "https://chef-bot.de",
 ]
 
+ACCESS_CONTROL_ALLOW_ORIGIN = [
+    "http://localhost:3000",
+    "http://194.164.77.123:8000",
+    "http://194.164.77.123:3000",
+    "https://crm.chef-bot.de",
+    "https://api.chef-bot.de",
+    "https://chef-bot.de",
+]
 
 # Logging configuration
 LOGGING = {
@@ -273,11 +293,11 @@ CHANNEL_LAYERS = {
 
 
 # Cookie settings for HTTP production
-SESSION_COOKIE_SECURE = False  # False for HTTP
+SESSION_COOKIE_SECURE = True  # False for HTTP
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_HTTPONLY = True
 
-CSRF_COOKIE_SECURE = False  # False for HTTP
+CSRF_COOKIE_SECURE = True  # False for HTTP
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = True
 

@@ -91,8 +91,31 @@ class PromotionSentLogStatus(models.TextChoices):
     FAILED = "FAILED", "Failed"
     DELIVERED = "DELIVERED", "Delivered"
     READ = "READ", "Read"
+    USED = "USED", "Used"
 
 
 class RewardCategory(models.TextChoices):
     PROMOTION = "PROMOTION", "Promotion"
     SALES_LEVEL = "SALES_LEVEL", "Sales Level"
+
+
+class OrganizationLanguage(models.TextChoices):
+    ENGLISH = "ENGLISH", "English"
+    GERMAN = "GERMAN", "German"
+    FRENCH = "FRENCH", "French"
+    SPANISH = "SPANISH", "Spanish"
+    ITALIAN = "ITALIAN", "Italian"
+    ARABIC = "ARABIC", "Arabic"
+
+    def __str__(self):
+        return self.label
+
+
+class ChatbotTone(models.TextChoices):
+    CASUAL = "CASUAL", "Casual"
+    FORMAL = "FORMAL", "Formal"
+    HUMOROUS = "HUMOROUS", "Humorous"
+    PROFESSIONAL = "PROFESSIONAL", "Professional"
+
+    def __str__(self):
+        return self.label

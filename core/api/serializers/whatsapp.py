@@ -11,15 +11,9 @@ from apps.restaurant.choices import RewardCategory, RewardType
 
 from apps.openAI.gpt_assistants import create_assistant, update_assistant
 from apps.openAI.tools import function_tools
-from apps.openAI.instructions import (
-    sales_level_one_assistant_instruction,
-    sales_level_two_assistant_instruction,
-    sales_level_three_assistant_instruction,
-    sales_level_four_assistant_instruction,
-    sales_level_five_assistant_instruction,
-)
-from apps.organization.models import Organization, WhatsappBot
-from apps.restaurant.models import Client, Reward, SalesLevel
+from apps.openAI.instructions import build_assistant_instruction
+from apps.organization.models import Organization
+from apps.restaurant.models import Client, Reward, SalesLevel, WhatsappBot
 
 from common.crypto import decrypt_data, encrypt_data, hash_key
 
@@ -122,7 +116,7 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
             assistant = create_assistant(
                 client,
                 f"{organization.name} whatsapp reservation assistant with sales level 1",
-                sales_level_one_assistant_instruction(organization.name),
+                build_assistant_instruction(organization.name),
                 function_tools(),
             )
 
@@ -300,49 +294,75 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         tools = function_tools()
 
         if level == 1:
-            instructions = sales_level_one_assistant_instruction(org_name)
+            instructions = build_assistant_instruction(restaurant_name=org_name)
         elif level == 2 and reward:
-            instructions = sales_level_two_assistant_instruction(
-                org_name, reward.type, reward.label
+            instructions = build_assistant_instruction(
+                restaurant_name=org_name,
+                sales_level=2,
+                reward_type=reward.type,
+                reward_label=reward.label,
             )
         elif level == 3:
             instructions = (
-                sales_level_three_assistant_instruction(
-                    org_name, reward.type, reward.label
+                build_assistant_instruction(
+                    restaurant_name=org_name,
+                    sales_level=3,
+                    reward_type=reward.type,
+                    reward_label=reward.label,
                 )
                 if reward and reward_enabled
-                else sales_level_three_assistant_instruction(org_name)
+                else build_assistant_instruction(
+                    restaurant_name=org_name, sales_level=3
+                )
             )
         elif level == 4:
             if reward and reward_enabled and priority_dish_enabled:
-                instructions = sales_level_four_assistant_instruction(
-                    org_name, reward.type, reward.label, priority_dish_enabled
+                instructions = build_assistant_instruction(
+                    restaurant_name=org_name,
+                    sales_level=4,
+                    reward_type=reward.type,
+                    reward_label=reward.label,
+                    priority_dish_enabled=True,
                 )
             elif reward and reward_enabled:
-                instructions = sales_level_four_assistant_instruction(
-                    org_name, reward.type, reward.label
+                instructions = build_assistant_instruction(
+                    restaurant_name=org_name,
+                    sales_level=4,
+                    reward_type=reward.type,
+                    reward_label=reward.label,
                 )
             elif priority_dish_enabled:
-                instructions = sales_level_four_assistant_instruction(
-                    org_name, priority_dish_enabled
+                instructions = build_assistant_instruction(
+                    restaurant_name=org_name, sales_level=4, priority_dish_enabled=True
                 )
             else:
-                instructions = sales_level_four_assistant_instruction(org_name)
+                instructions = build_assistant_instruction(
+                    restaurant_name=org_name, sales_level=4
+                )
         elif level == 5:
             if priority_dish_enabled and personalization_enabled:
-                instructions = sales_level_five_assistant_instruction(
-                    org_name, priority_dish_enabled, personalization_enabled
+                instructions = build_assistant_instruction(
+                    restaurant_name=org_name,
+                    sales_level=5,
+                    priority_dish_enabled=True,
+                    personalization_enabled=True,
                 )
             elif priority_dish_enabled:
-                instructions = sales_level_five_assistant_instruction(
-                    org_name, priority_dish_enabled
+                instructions = build_assistant_instruction(
+                    restaurant_name=org_name,
+                    sales_level=5,
+                    priority_dish_enabled=True,
                 )
             elif personalization_enabled:
-                instructions = sales_level_five_assistant_instruction(
-                    org_name, personalization_enabled
+                instructions = build_assistant_instruction(
+                    restaurant_name=org_name,
+                    sales_level=5,
+                    personalization_enabled=True,
                 )
             else:
-                instructions = sales_level_five_assistant_instruction(org_name)
+                instructions = build_assistant_instruction(
+                    restaurant_name=org_name, sales_level=5
+                )
         else:
             return  # No update for unknown level
 
