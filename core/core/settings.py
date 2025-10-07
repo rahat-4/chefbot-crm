@@ -2,6 +2,7 @@ from datetime import timedelta
 from decouple import config
 from pathlib import Path
 import os
+from corsheaders.defaults import default_headers
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -64,7 +65,6 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "common.middlewares.JWTAuthCookieMiddleware",  # Custom middleware to handle JWT from cookies
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -236,6 +236,14 @@ ACCESS_CONTROL_ALLOW_ORIGIN = [
     "https://chef-bot.de",
 ]
 
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "authorization",
+    "content-type",
+    "accept",
+    # add other headers if needed
+]
+
+
 # Logging configuration
 LOGGING = {
     "version": 1,
@@ -295,13 +303,13 @@ CHANNEL_LAYERS = {
 
 
 # Cookie settings for HTTP production
-SESSION_COOKIE_SECURE = True  # False for HTTP
-SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = "None"  # if cross-site cookies needed
+SESSION_COOKIE_HTTPONLY = True  # keep for security
 
-CSRF_COOKIE_SECURE = True  # False for HTTP
-CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = "None"  # if cross-site cookies needed
+CSRF_COOKIE_HTTPONLY = False  # allow frontend to read CSRF token
 
 
 # Celery Configuration
