@@ -3,7 +3,7 @@ import random
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
@@ -225,10 +225,7 @@ class PromotionTrigger(BaseModel):
         null=True,
         help_text="Number of inactivity days to trigger the promotion.",
     )
-
-    def save(self, *args, **kwargs):
-        self.clean()
-        super().save(*args, **kwargs)
+    menus = models.ManyToManyField(Menu, blank=True, related_name="promotion_triggers")
 
     def clean(self):
         super().clean()
@@ -237,32 +234,26 @@ class PromotionTrigger(BaseModel):
             if not self.yearly_category:
                 raise ValidationError(
                     {
-                        "yearly_category": "yearly_category is required when type is Yearly."
+                        "yearly_category": "yearly_category is required when type is YEARLY."
                     }
                 )
-            if (
-                self.yearly_category == YearlyCategory.BIRTHDAY
-                and self.days_before is None
+            if self.yearly_category in (
+                YearlyCategory.BIRTHDAY,
+                YearlyCategory.ANNIVERSARY,
             ):
-                raise ValidationError(
-                    {
-                        "days_before": "days_before is required when yearly_category is Birthday."
-                    }
-                )
-            if (
-                self.yearly_category == YearlyCategory.ANNIVERSARY
-                and self.days_before is None
-            ):
-                raise ValidationError(
-                    {
-                        "days_before": "days_before is required when yearly_category is Anniversary."
-                    }
-                )
+                if self.days_before is None:
+                    raise ValidationError(
+                        {
+                            "days_before": f"days_before is required when yearly_category is {self.yearly_category}."
+                        }
+                    )
+
+        # Don’t validate many-to-many here (menus) if instance is new (no pk)
         if self.type == TriggerType.INACTIVITY:
             if self.inactivity_days is None or self.inactivity_days <= 0:
                 raise ValidationError(
                     {
-                        "inactivity_days": "inactivity_days must be a positive integer for Inactivity trigger."
+                        "inactivity_days": "inactivity_days must be a positive integer for INACTIVITY trigger."
                     }
                 )
 
@@ -270,9 +261,13 @@ class PromotionTrigger(BaseModel):
             if self.min_count is None or self.min_count <= 0:
                 raise ValidationError(
                     {
-                        "min_count": "min_count must be a positive integer for Reservation Count trigger."
+                        "min_count": "min_count must be a positive integer for RESERVATION_COUNT trigger."
                     }
                 )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"UID: {self.uid} | Type: {self.type}"

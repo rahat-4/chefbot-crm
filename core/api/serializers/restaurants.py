@@ -24,10 +24,17 @@ from apps.restaurant.models import (
     RestaurantTable,
     Reservation,
     RestaurantDocument,
+    WhatsappBot,
 )
 
 
 logger = logging.getLogger(__name__)
+
+
+class WhatsappBotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WhatsappBot
+        exclude = ["organization"]
 
 
 class OpeningHoursSerializer(serializers.ModelSerializer):
@@ -39,6 +46,7 @@ class OpeningHoursSerializer(serializers.ModelSerializer):
 
 class RestaurantSerializer(serializers.ModelSerializer):
     opening_hours = OpeningHoursSerializer(many=True, required=False)
+    whatsappbot = WhatsappBotSerializer(source="whatsapp_bots", read_only=True)
 
     class Meta:
         model = Organization
@@ -48,6 +56,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
             "name",
             "whatsapp_number",
             "whatsapp_enabled",
+            "whatsappbot",
             "email",
             "description",
             "website",
