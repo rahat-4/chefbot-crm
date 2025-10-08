@@ -177,9 +177,6 @@ class PromotionSerializer(serializers.ModelSerializer):
             trigger_data = validated_data.pop("trigger")
             menus_data = trigger_data.pop("menus", [])
 
-            print("---------trigger_data--------", trigger_data)
-            print("---------menus_data--------", menus_data)
-
             organization = validated_data.get("organization")
 
             reward = Reward.objects.create(organization=organization, **reward_data)
