@@ -202,8 +202,15 @@ def send_scheduled_promotions() -> None:
             send_for_clients(clients, MessageTemplateType.RESERVATION_COUNT)
 
         elif trigger.type == TriggerType.MENU_SELECTED:
-            clients = Client.objects.filter(organization=promotion.organization).only(
-                "id", "name", "whatsapp_number"
+            trigger_menus = promotion.trigger.menus.all()
+
+            clients = (
+                Client.objects.filter(
+                    organization=promotion.organization,
+                    reservations__menus__in=trigger_menus,
+                )
+                .only("id", "name", "whatsapp_number")
+                .distinct()
             )
             send_for_clients(clients, MessageTemplateType.MENU_SELECTED)
 

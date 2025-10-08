@@ -326,7 +326,7 @@ from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     "send-scheduled-promotions-daily": {
         "task": "common.tasks.send_scheduled_promotions",
-        "schedule": crontab(hour=6, minute=41),
+        "schedule": crontab(hour=6, minute=0),
     },
     # Reservation reminder task - run every 10 minutes
     "reservation-reminder-task": {
