@@ -8,6 +8,7 @@ from rest_framework.generics import (
     RetrieveUpdateAPIView,
     RetrieveUpdateDestroyAPIView,
     ValidationError,
+    RetrieveDestroyAPIView
 )
 from rest_framework.views import APIView
 
@@ -180,6 +181,18 @@ class RestaurantDocumentListView(ListCreateAPIView):
 
         # Save new document
         serializer.save(organization=organization, name="menu")
+
+
+class RestaurantDocumentDetailView(RetrieveDestroyAPIView):
+    queryset = RestaurantDocument.objects.all()
+    serializer_class = RestaurantDocumentSerializer
+    permission_classes = [IsOwner]
+
+    def get_object(self):
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        document_uid = self.kwargs.get("document_uid")
+
+        return self.queryset.get(organization__uid=restaurant_uid, uid=document_uid)
 
 
 class RestaurantDashboardView(APIView):

@@ -393,6 +393,7 @@ class WhatsappClientListSerializer(serializers.ModelSerializer):
         model = Client
         fields = [
             "uid",
+            "name",
             "whatsapp_number",
             "last_message",
             "last_message_sent_at",

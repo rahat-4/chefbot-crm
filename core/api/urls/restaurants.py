@@ -1,6 +1,7 @@
 from django.urls import path
 
 from ..views.restaurants import (
+    RestaurantDocumentDetailView,
     MessageTemplateListView,
     RestaurantMenuAllergensView,
     RestaurantMenuDetailView,
@@ -50,6 +51,11 @@ urlpatterns = [
         "/<uuid:restaurant_uid>/message-templates",
         MessageTemplateListView.as_view(),
         name="restaurant.message-template-list",
+    ),
+    path(
+        "/<uuid:restaurant_uid>/documents/<uuid:document_uid>",
+        RestaurantDocumentDetailView.as_view(),
+        name="restaurant.document-detail",
     ),
     path(
         "/<uuid:restaurant_uid>/documents",

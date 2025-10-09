@@ -122,6 +122,8 @@ def send_scheduled_promotions() -> None:
                     "1": (client.name or to),
                     "2": org_name,
                     "3": reward_label,
+                    "4": promotion.reward.promo_code,
+                    "5": promotion.valid_to.strftime("%d %b %Y"),
                 }
 
                 whatsapp_respone = send_whatsapp_template(

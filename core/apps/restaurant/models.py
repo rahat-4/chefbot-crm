@@ -532,7 +532,7 @@ class RestaurantDocument(BaseModel):
         verbose_name_plural = "Restaurant Documents"
 
     def __str__(self):
-        return f"{self.name} ({self.document_type})"
+        return f"{self.name} ({self.document_type}) - {self.organization.name}"
 
 
 class WhatsappBot(BaseModel):
@@ -574,4 +574,4 @@ class WhatsappBot(BaseModel):
         )
 
     def __str__(self):
-        return f"{self.chatbot_name} - {self.uid}"
+        return f"{self.chatbot_name} - {self.uid}, Restaurant: {self.organization.name}"
