@@ -107,8 +107,10 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             # Create Sales Level 1
             organization = validated_data["organization"]
-            sales_level = SalesLevel.objects.create(
-                organization=organization, level=1, name="Reservation only"
+            sales_level, _ = SalesLevel.objects.get_or_create(
+                organization=organization,
+                level=1,
+                defaults={"name": "Reservations Only"},
             )
 
             # Create Assistant
@@ -243,6 +245,11 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
                     {"sales_level": ["Reward is required for sales level 2."]}
                 )
 
+            sales_level, _ = SalesLevel.objects.get_or_create(
+                organization=organization,
+                level=level,
+                defaults={"name": self._get_sales_level_name(level)},
+            )
             # Set name and other properties
             sales_level.level = level
             sales_level.name = self._get_sales_level_name(level)
