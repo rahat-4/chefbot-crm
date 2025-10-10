@@ -84,8 +84,8 @@ def whatsapp_bot(request):
         # Check for active runs and cancel them if necessary
         cancel_active_runs(openai_client, customer.thread_id)
 
-        instructions = openai_client.beta.assistants.retrieve(assistant_id).instructions
-        print("Instructions------------------------------->:", instructions)
+        # instructions = openai_client.beta.assistants.retrieve(assistant_id).instructions
+        # print("Instructions------------------------------->:", instructions)
 
         # Add user message to thread
         openai_client.beta.threads.messages.create(

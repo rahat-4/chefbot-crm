@@ -376,7 +376,7 @@ class Client(BaseModel):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"UID: {self.uid} | Whatsapp: {self.whatsapp_number}"
+        return f"UID: {self.uid} | Whatsapp: {self.whatsapp_number} | Thread ID: {self.thread_id} | Restaurant: {self.organization.name}"
 
 
 class PromotionSentLog(BaseModel):

@@ -435,3 +435,12 @@ class MessageTemplateSerializer(serializers.ModelSerializer):
             "content_variables",
             "content",
         ]
+
+
+class RestaurantPromotionsSerializer(serializers.ModelSerializer):
+    reward_type = serializers.CharField(source="reward.type", read_only=True)
+    reward_label = serializers.CharField(source="reward.label", read_only=True)
+
+    class Meta:
+        model = Promotion
+        fields = ["uid", "reward_type", "reward_label"]

@@ -11,6 +11,8 @@ from apps.restaurant.models import (
     Reservation,
     RestaurantTable,
     ClientMessage,
+    Reward,
+    Promotion,
 )
 from apps.restaurant.choices import (
     ReservationCancelledBy,
@@ -39,6 +41,20 @@ class ClientSerializer(serializers.ModelSerializer):
             "allergens",
             "special_notes",
         ]
+
+
+class RewardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reward
+        fields = [
+            "uid",
+            "type",
+            "label",
+            "promo_code",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["uid", "promo_code", "created_at", "updated_at"]
 
 
 class MenuSerializer(serializers.ModelSerializer):
@@ -82,6 +98,11 @@ class ReservationSerializer(serializers.ModelSerializer):
         queryset=Organization.objects.all(), slug_field="uid"
     )
     client = ClientSerializer(read_only=True)
+    promo_code = serializers.SlugRelatedField(
+        queryset=Promotion.objects.all(),
+        slug_field="uid",
+        required=False,
+    )
 
     class Meta:
         model = Reservation
@@ -106,6 +127,7 @@ class ReservationSerializer(serializers.ModelSerializer):
             "booking_reminder_sent_at",
             "menus",
             "table",
+            "promo_code",
             "organization",
         ]
 
@@ -135,6 +157,9 @@ class ReservationSerializer(serializers.ModelSerializer):
             "uid": instance.organization.uid,
             "name": instance.organization.name,
         }
+        rep["promo_code"] = (
+            RewardSerializer(instance.promo_code).data if instance.promo_code else None
+        )
         return rep
 
     def create(self, validated_data):
@@ -166,6 +191,11 @@ class ReservationSerializer(serializers.ModelSerializer):
 
             validated_data["client"] = client
 
+            # Reward
+            promotion = validated_data.pop("promo_code", None)
+            if promotion:
+                validated_data["promo_code"] = promotion.reward
+
             # Reservation data
             menus_data = validated_data.pop("menus", [])
             reservation_status = validated_data.get("reservation_status")
@@ -185,15 +215,21 @@ class ReservationSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         with transaction.atomic():
             menus_data = validated_data.pop("menus", None)
+            promotion = validated_data.pop("promo_code", None)
             client_name = validated_data.pop("client_name", None)
+            client_phone = validated_data.pop("client_phone", None)
             client_allergens = validated_data.pop("client_allergens", None)
 
-            if any([client_name, client_allergens is not None]):
+            if any([client_name, client_phone, client_allergens is not None]):
                 client = instance.client
                 updated = False
 
                 if client_name and client.name != client_name:
                     client.name = client_name
+                    updated = True
+
+                if client_phone and client.whatsapp_number != client_phone:
+                    client.whatsapp_number = client_phone
                     updated = True
 
                 if (
@@ -210,6 +246,10 @@ class ReservationSerializer(serializers.ModelSerializer):
             )
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
+
+            # Reward
+            if promotion:
+                instance.promo_code = promotion.reward
 
             # ✅ Auto-set reservation_end_time and last_visit on COMPLETED status
             if reservation_status == ReservationStatus.COMPLETED:

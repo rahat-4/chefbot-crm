@@ -4,11 +4,12 @@ from datetime import datetime, date, timedelta
 
 from rest_framework.response import Response
 from rest_framework.generics import (
+    ListAPIView,
     ListCreateAPIView,
     RetrieveUpdateAPIView,
     RetrieveUpdateDestroyAPIView,
     ValidationError,
-    RetrieveDestroyAPIView
+    RetrieveDestroyAPIView,
 )
 from rest_framework.views import APIView
 
@@ -22,12 +23,13 @@ from apps.organization.models import (
     MessageTemplate,
 )
 from apps.organization.choices import OrganizationType
-from apps.restaurant.choices import MenuStatus
+from apps.restaurant.choices import MenuStatus, RewardCategory
 from apps.restaurant.models import (
     RestaurantTable,
     Menu,
     Reservation,
     RestaurantDocument,
+    Promotion,
 )
 
 from common.permissions import IsOwner
@@ -41,6 +43,7 @@ from ..serializers.restaurants import (
     RestaurantMenuAllergensSerializer,
     RestaurantDocumentSerializer,
     RestaurantDashboardSerializer,
+    RestaurantPromotionsSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -397,4 +400,30 @@ class MessageTemplateListView(ListCreateAPIView):
         return self.queryset.filter(
             organization__uid=restaurant_uid,
             organization__organization_type=OrganizationType.RESTAURANT,
+        )
+
+
+class RestaurantPromotionListView(ListAPIView):
+    queryset = Promotion.objects.all()
+    serializer_class = RestaurantPromotionsSerializer
+    permission_classes = [IsOwner]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    search_fields = ["reward_type", "reward_label"]
+    ordering_fields = ["created_at", "valid_from", "valid_to"]
+
+    def get_queryset(self):
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        user = self.request.user
+
+        return self.queryset.filter(
+            organization__uid=restaurant_uid,
+            organization__organization_users__user=user,
+            organization__organization_type=OrganizationType.RESTAURANT,
+            is_enabled=True,
+            valid_to__gte=date.today(),
+            reward__reward_category=RewardCategory.PROMOTION,
         )

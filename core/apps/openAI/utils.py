@@ -492,12 +492,7 @@ def handle_get_available_tables(call, organization) -> Dict[str, Any]:
     for table in all_tables:
         is_available = is_table_available(table, reservation_date, reservation_time)
 
-        table_info = {
-            "uid": str(table.uid),
-            "name": table.name,
-            "capacity": table.capacity,
-            "category": table.category,
-        }
+        table_info = {"uid": str(table.uid), "name": table.name}
 
         if is_available:
             available_tables.append(table_info)
@@ -516,7 +511,6 @@ def handle_get_available_tables(call, organization) -> Dict[str, Any]:
         "date": date_str,
         "time": time_str,
         "available_tables": available_tables,
-        "busy_tables": busy_tables,
         "total_available": len(available_tables),
         "total_busy": len(busy_tables),
         "suggestions": suggestions if available_tables == [] else [],

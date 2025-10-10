@@ -14,6 +14,7 @@ from ..views.restaurants import (
     RestaurantDashboardView,
     RestaurantAnalyticsTopDishesView,
     RestaurantAnalyticsMostVisitedView,
+    RestaurantPromotionListView,
 )
 
 urlpatterns = [
@@ -31,6 +32,11 @@ urlpatterns = [
         "/<uuid:restaurant_uid>/menu/<uuid:menu_uid>/allergens",
         RestaurantMenuAllergensView.as_view(),
         name="restaurant.menu-allergens",
+    ),
+    path(
+        "/<uuid:restaurant_uid>/promotions",
+        RestaurantPromotionListView.as_view(),
+        name="restaurant.promotions",
     ),
     path(
         "/<uuid:restaurant_uid>/menu/<uuid:menu_uid>",
