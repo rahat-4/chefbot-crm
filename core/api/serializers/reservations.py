@@ -102,6 +102,8 @@ class ReservationSerializer(serializers.ModelSerializer):
         queryset=Promotion.objects.all(),
         slug_field="uid",
         required=False,
+        allow_empty=True,
+        allow_null=True,
     )
 
     class Meta:

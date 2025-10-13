@@ -11,7 +11,13 @@ from apps.restaurant.choices import RewardCategory, RewardType
 
 from apps.openAI.gpt_assistants import create_assistant, update_assistant
 from apps.openAI.tools import function_tools
-from apps.openAI.instructions import build_assistant_instruction
+from apps.openAI.instructions import (
+    sales_level_one_assistant_instruction,
+    sales_level_two_assistant_instruction,
+    sales_level_three_assistant_instruction,
+    sales_level_four_assistant_instruction,
+    sales_level_five_assistant_instruction,
+)
 from apps.organization.models import Organization
 from apps.restaurant.models import Client, Reward, SalesLevel, WhatsappBot
 
@@ -107,10 +113,9 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             # Create Sales Level 1
             organization = validated_data["organization"]
-            sales_level, _ = SalesLevel.objects.get_or_create(
-                organization=organization,
-                level=1,
-                defaults={"name": "Reservations Only"},
+            SalesLevel.objects.filter(organization=organization).delete()
+            sales_level = SalesLevel.objects.create(
+                organization=organization, level=1, name="Reservation only"
             )
 
             # Create Assistant
@@ -118,7 +123,7 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
             assistant = create_assistant(
                 client,
                 f"{organization.name} whatsapp reservation assistant with sales level 1",
-                build_assistant_instruction(organization.name),
+                sales_level_one_assistant_instruction(organization.name),
                 function_tools(),
             )
 
@@ -245,11 +250,6 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
                     {"sales_level": ["Reward is required for sales level 2."]}
                 )
 
-            sales_level, _ = SalesLevel.objects.get_or_create(
-                organization=organization,
-                level=level,
-                defaults={"name": self._get_sales_level_name(level)},
-            )
             # Set name and other properties
             sales_level.level = level
             sales_level.name = self._get_sales_level_name(level)
@@ -264,7 +264,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
             self._update_assistant(
                 client,
                 assistant_id,
-                organization.name,
+                organization,
                 level,
                 reward,
                 reward_enabled,
@@ -291,7 +291,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         self,
         client,
         assistant_id,
-        org_name,
+        organization,
         level,
         reward=None,
         reward_enabled=False,
@@ -299,79 +299,65 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         personalization_enabled=False,
     ):
         tools = function_tools()
+        org_name = organization.name
 
         if level == 1:
-            instructions = build_assistant_instruction(restaurant_name=org_name)
+            instructions = sales_level_one_assistant_instruction(org_name)
         elif level == 2 and reward:
-            instructions = build_assistant_instruction(
-                restaurant_name=org_name,
-                sales_level=2,
-                reward_type=reward.type,
-                reward_label=reward.label,
+            instructions = sales_level_two_assistant_instruction(
+                org_name, reward.type, reward.label
             )
         elif level == 3:
             instructions = (
-                build_assistant_instruction(
-                    restaurant_name=org_name,
-                    sales_level=3,
-                    reward_type=reward.type,
-                    reward_label=reward.label,
+                sales_level_three_assistant_instruction(
+                    org_name, reward.type, reward.label
                 )
                 if reward and reward_enabled
-                else build_assistant_instruction(
-                    restaurant_name=org_name, sales_level=3
-                )
+                else sales_level_three_assistant_instruction(org_name)
             )
         elif level == 4:
             if reward and reward_enabled and priority_dish_enabled:
-                instructions = build_assistant_instruction(
-                    restaurant_name=org_name,
-                    sales_level=4,
-                    reward_type=reward.type,
-                    reward_label=reward.label,
-                    priority_dish_enabled=True,
+                instructions = sales_level_four_assistant_instruction(
+                    org_name, reward.type, reward.label, priority_dish_enabled
                 )
             elif reward and reward_enabled:
-                instructions = build_assistant_instruction(
-                    restaurant_name=org_name,
-                    sales_level=4,
-                    reward_type=reward.type,
-                    reward_label=reward.label,
+                instructions = sales_level_four_assistant_instruction(
+                    org_name, reward.type, reward.label
                 )
             elif priority_dish_enabled:
-                instructions = build_assistant_instruction(
-                    restaurant_name=org_name, sales_level=4, priority_dish_enabled=True
+                instructions = sales_level_four_assistant_instruction(
+                    org_name, priority_dish_enabled
                 )
             else:
-                instructions = build_assistant_instruction(
-                    restaurant_name=org_name, sales_level=4
-                )
+                instructions = sales_level_four_assistant_instruction(org_name)
         elif level == 5:
             if priority_dish_enabled and personalization_enabled:
-                instructions = build_assistant_instruction(
-                    restaurant_name=org_name,
-                    sales_level=5,
-                    priority_dish_enabled=True,
-                    personalization_enabled=True,
+                instructions = sales_level_five_assistant_instruction(
+                    org_name, priority_dish_enabled, personalization_enabled
                 )
             elif priority_dish_enabled:
-                instructions = build_assistant_instruction(
-                    restaurant_name=org_name,
-                    sales_level=5,
-                    priority_dish_enabled=True,
+                instructions = sales_level_five_assistant_instruction(
+                    org_name, priority_dish_enabled
                 )
             elif personalization_enabled:
-                instructions = build_assistant_instruction(
-                    restaurant_name=org_name,
-                    sales_level=5,
-                    personalization_enabled=True,
+                instructions = sales_level_five_assistant_instruction(
+                    org_name, personalization_enabled
                 )
             else:
-                instructions = build_assistant_instruction(
-                    restaurant_name=org_name, sales_level=5
-                )
+                instructions = sales_level_five_assistant_instruction(org_name)
         else:
             return  # No update for unknown level
+
+        # Add instruction to chatbot messages
+        customers = Client.objects.filter(organization=organization)
+
+        for customer in customers:
+            if customer.thread_id:
+                client.beta.threads.messages.create(
+                    customer.thread_id,
+                    role="assistant",
+                    content=instructions,
+                )
 
         update_assistant(
             client=client,
