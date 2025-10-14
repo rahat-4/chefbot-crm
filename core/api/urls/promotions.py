@@ -4,9 +4,15 @@ from ..views.promotions import (
     PromotionListView,
     PromotionDetailView,
     PromotionSentLogListView,
+    PromotionReportExportExcelView,
 )
 
 urlpatterns = [
+    path(
+        "/<uuid:promotion_uid>/sent-logs/export-excel",
+        PromotionReportExportExcelView.as_view(),
+        name="promotion.report.excel",
+    ),
     path(
         "/<uuid:promotion_uid>/sent-logs",
         PromotionSentLogListView.as_view(),

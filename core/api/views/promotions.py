@@ -1,3 +1,5 @@
+from django.http import HttpResponse
+
 from rest_framework.generics import (
     ListAPIView,
     ListCreateAPIView,
@@ -14,6 +16,7 @@ from apps.organization.models import MessageTemplate
 from apps.organization.choices import OrganizationType
 
 from common.permissions import IsOwner
+from common.excels import generate_excel, get_timestamped_filename
 
 from ..serializers.promotions import PromotionSerializer, PromotionSentLogSerializer
 
@@ -91,3 +94,51 @@ class PromotionSentLogListView(ListAPIView):
         }
 
         return Response(response_data)
+
+
+class PromotionReportExportExcelView(APIView):
+    permission_classes = [IsOwner]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        promotion_uid = self.kwargs.get("promotion_uid")
+
+        try:
+            promotion = Promotion.objects.get(
+                uid=promotion_uid,
+                organization__organization_users__user=user,
+                organization__organization_type=OrganizationType.RESTAURANT,
+            )
+        except Promotion.DoesNotExist:
+            return Response({"detail": "Promotion not found."}, status=404)
+
+        sent_logs = PromotionSentLog.objects.filter(promotion=promotion).select_related(
+            "client"
+        )
+
+        title = f"Promotion - {promotion.title}"
+        headers = ["Client Name", "WhatsApp", "Status", "Sent At"]
+
+        data = []
+        for log in sent_logs:
+            data.append(
+                {
+                    "Client Name": log.client.name,
+                    "WhatsApp": log.client.whatsapp_number,
+                    "Status": log.status,
+                    "Sent At": (
+                        log.sent_at.strftime("%Y-%m-%d %H:%M") if log.sent_at else ""
+                    ),
+                }
+            )
+
+        excel_file = generate_excel(title, headers, data)
+        filename = get_timestamped_filename("promotion_report")
+
+        response = HttpResponse(
+            excel_file.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f"attachment; filename={filename}"
+
+        return response

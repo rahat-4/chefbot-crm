@@ -1,8 +1,18 @@
 from django.urls import path
 
-from ..views.clients import ClientListView, ClientDetailView, ClientMessageListView
+from ..views.clients import (
+    ClientListView,
+    ClientDetailView,
+    ClientMessageListView,
+    ClientExportExcelView,
+)
 
 urlpatterns = [
+    path(
+        "/export-excel",
+        ClientExportExcelView.as_view(),
+        name="client-export-excel",
+    ),
     path(
         "/<uuid:client_uid>/messages",
         ClientMessageListView.as_view(),

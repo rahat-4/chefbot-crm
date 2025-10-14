@@ -2,9 +2,11 @@ import logging
 from openai import OpenAI
 
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from rest_framework.generics import (
     ListAPIView,
     RetrieveAPIView,
@@ -22,7 +24,12 @@ from apps.restaurant.choices import ClientMessageRole
 
 from common.crypto import decrypt_data
 from common.whatsapp import send_whatsapp_message
-
+from common.excels import (
+    generate_excel,
+    get_timestamped_filename,
+    format_phone_number,
+    format_day_month,
+)
 
 from ..serializers.whatsapp import (
     RestaurantWhatsAppSerializer,
@@ -186,7 +193,7 @@ class RestaurantWhatsAppDetailView(RetrieveUpdateDestroyAPIView):
 
 
 class WhatsappClientListView(ListAPIView):
-    queryset = Client.objects.all()
+    queryset = Client.objects.filter(thread_id__isnull=False)
     serializer_class = WhatsappClientListSerializer
 
     def get_queryset(self):
@@ -195,3 +202,48 @@ class WhatsappClientListView(ListAPIView):
 
         self.queryset = self.queryset.filter(organization=whatsapp_bot.organization)
         return self.queryset.order_by("-created_at")
+
+
+class WhatsappClientExportExcelView(APIView):
+    def get(self, request, *args, **kwargs):
+        whatsapp_bot_uid = self.kwargs.get("whatsapp_bot_uid")
+        whatsapp_bot = get_object_or_404(WhatsappBot, uid=whatsapp_bot_uid)
+
+        clients = Client.objects.filter(
+            organization=whatsapp_bot.organization,
+            thread_id__isnull=False,
+        ).order_by("-created_at")
+
+        title = "WhatsApp Clients"
+        headers = [
+            "Name",
+            "WhatsApp",
+            "Last Visit",
+            "Created At",
+        ]
+
+        data = []
+        for client in clients:
+            data.append(
+                {
+                    "Name": client.name,
+                    "WhatsApp": client.whatsapp_number,
+                    "Last Visit": (
+                        client.last_visit.strftime("%Y-%m-%d %H:%M")
+                        if client.last_visit
+                        else ""
+                    ),
+                    "Created At": client.created_at.strftime("%Y-%m-%d %H:%M"),
+                }
+            )
+
+        excel_file = generate_excel(title, headers, data)
+        filename = get_timestamped_filename("whatsapp_clients")
+
+        response = HttpResponse(
+            excel_file.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f"attachment; filename={filename}"
+
+        return response
