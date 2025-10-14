@@ -16,6 +16,7 @@ from apps.organization.models import (
     Organization,
     OrganizationUser,
     OpeningHours,
+    Template,
     MessageTemplate,
 )
 from apps.restaurant.models import (
@@ -136,6 +137,19 @@ class RestaurantSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def add_templates_to_restaurant(self, restaurant):
+        templates = Template.objects.filter()
+
+        for template in templates:
+            MessageTemplate.objects.create(
+                name=template.get_type_display(),
+                content_sid=template.content_sid,
+                content_variables=template.content_variables,
+                content=template.content,
+                organization=restaurant,
+                type=template.type,
+            )
+
     def create(self, validated_data):
         with transaction.atomic():
             opening_hours = validated_data.pop("opening_hours", [])
@@ -150,6 +164,10 @@ class RestaurantSerializer(serializers.ModelSerializer):
 
             for opening_hour in opening_hours:
                 OpeningHours.objects.create(organization=organization, **opening_hour)
+
+            # Add default message templates to the new restaurant
+            self.add_templates_to_restaurant(organization)
+
             return organization
 
     def update(self, instance, validated_data):

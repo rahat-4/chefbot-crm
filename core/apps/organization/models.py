@@ -108,6 +108,24 @@ class OpeningHours(BaseModel):
         return f"Restaurant: {self.organization.name} - {self.day}: Closed: {self.is_closed}"
 
 
+class Template(BaseModel):
+    content_sid = models.CharField(max_length=255)
+    content_variables = models.JSONField(default=dict)
+    content = models.TextField()
+    type = models.CharField(
+        max_length=20,
+        choices=MessageTemplateType.choices,
+        default=MessageTemplateType.REMINDER,
+    )
+
+    class Meta:
+        verbose_name = "Template"
+        verbose_name_plural = "Templates"
+
+    def __str__(self):
+        return f"UID: {self.uid} | Type: {self.type}"
+
+
 class MessageTemplate(BaseModel):
     name = models.CharField(max_length=255)
     content_sid = models.CharField(max_length=255)
