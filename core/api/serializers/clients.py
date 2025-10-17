@@ -43,6 +43,7 @@ class ClientSerializer(serializers.ModelSerializer):
                     "reservation_name": reservation.reservation_name,
                     "reservation_date": reservation.reservation_date,
                     "reservation_time": reservation.reservation_time,
+                    "reservation_status": reservation.reservation_status,
                     "menu": [menu.name for menu in reservation.menus.all()],
                 }
             )

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class UserStatus(models.TextChoices):
@@ -21,8 +22,8 @@ class UserType(models.TextChoices):
 
 
 class WebsiteLanguage(models.TextChoices):
-    ENGLISH = "ENGLISH", "English"
-    GERMAN = "GERMAN", "German"
+    ENGLISH = "ENGLISH", _("English")
+    GERMAN = "GERMAN", _("German")
 
     def __str__(self):
         return self.label

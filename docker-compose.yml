@@ -19,9 +19,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: sh -c "daphne -b 0.0.0.0 -p 8000 core.asgi:application"
+    command: sh -c "python manage.py compilemessages && daphne -b 0.0.0.0 -p 8000 core.asgi:application"
     volumes:
       - ./core:/app
+      - ./locale:/app/locale  # Add this to persist translations
     ports:
       - "8000:8000"
     depends_on:
@@ -29,6 +30,9 @@ services:
       - redis
     env_file:
       - .env
+    environment:
+      - LANG=en_US.UTF-8
+      - LC_ALL=en_US.UTF-8
     
   celery:
     build:
@@ -37,11 +41,15 @@ services:
     command: sh -c "celery -A core worker -l info"
     volumes:
       - ./core:/app
+      - ./locale:/app/locale  # Add this for translations in Celery tasks
     depends_on:
       - db
       - redis
     env_file:
       - .env
+    environment:
+      - LANG=en_US.UTF-8
+      - LC_ALL=en_US.UTF-8
   
   celery-beat:
     build:
@@ -50,11 +58,15 @@ services:
     command: sh -c "celery -A core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     volumes:
       - ./core:/app
+      - ./locale:/app/locale  # Add this for translations in Celery Beat
     depends_on:
       - db
       - redis
     env_file:
       - .env
+    environment:
+      - LANG=en_US.UTF-8
+      - LC_ALL=en_US.UTF-8
 
   pgadmin:
     image: dpage/pgadmin4

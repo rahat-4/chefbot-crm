@@ -257,7 +257,7 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
 
     def validate_price(self, value):
         """Validate price is between 0 and 1000"""
-        if value is not None and not (0 < value < 1000):
+        if value is not None and not (0 <= value < 1000):
             raise serializers.ValidationError("Price must be between 0 and 1000.")
         return value
 

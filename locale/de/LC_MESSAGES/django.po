@@ -1,0 +1,56 @@
+# German translations for your Django project.
+# Copyright (C) 2025
+# This file is distributed under the same license as your project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-10-16 06:30+0000\n"
+"PO-Revision-Date: 2025-10-16 06:30+0000\n"
+"Last-Translator: Your Name <your.email@example.com>\n"
+"Language-Team: German <de@li.org>\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apps/authentication/choices.py:25
+msgid "English"
+msgstr "Englisch"
+
+#: apps/authentication/choices.py:26
+msgid "German"
+msgstr "Deutsch"
+
+# Add your TextChoices translations here:
+msgid "Drink"
+msgstr "Getränk"
+
+msgid "Dessert"
+msgstr "Nachtisch"
+
+msgid "Discount"
+msgstr "Rabatt"
+
+msgid "Custom"
+msgstr "Benutzerdefiniert"
+
+msgid "Anniversary"
+msgstr "Jubiläum"
+
+msgid "Birthday"
+msgstr "Geburtstag"
+
+msgid "Yearly"
+msgstr "Jährlich"
+
+msgid "Menu Selected"
+msgstr "Menü ausgewählt"
+
+msgid "Inactivity"
+msgstr "Inaktivität"
+
+msgid "Reservation Count"
+msgstr "Anzahl der Reservierungen"
