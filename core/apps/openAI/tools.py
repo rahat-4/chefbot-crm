@@ -74,14 +74,14 @@ def function_tools():
             "type": "function",
             "function": {
                 "name": "get_available_tables",
-                "description": "Check table availability for a given date (and optional time). Accept natural expressions like 'today', 'tomorrow', or 'next Saturday'.",
+                "description": "Check table availability for a given date (and optional time).",
                 "parameters": {
                     "type": "object",
                     "required": ["date", "guests"],
                     "properties": {
                         "date": {
                             "type": "string",
-                            "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
+                            "description": "Reservation date.",
                         },
                         "time": {
                             "type": "string",
@@ -130,7 +130,7 @@ def function_tools():
                         },
                         "date": {
                             "type": "string",
-                            "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
+                            "description": "Reservation date.",
                         },
                         "time": {
                             "type": "string",
@@ -182,7 +182,7 @@ def function_tools():
                     "properties": {
                         "original_reservation_date": {
                             "type": "string",
-                            "description": "Original reservation date to identify the reservation to reschedule. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
+                            "description": "Original reservation date to identify the reservation to reschedule.",
                         },
                         "original_reservation_time": {
                             "type": "string",
@@ -205,7 +205,7 @@ def function_tools():
                         },
                         "date": {
                             "type": "string",
-                            "description": "NEW reservation date. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
+                            "description": "NEW reservation date.",
                         },
                         "time": {
                             "type": "string",
@@ -279,14 +279,14 @@ def function_tools():
             "type": "function",
             "function": {
                 "name": "cancel_reservation",
-                "description": "Cancel a reservation using reservation date (and optionally reservation time). Accept natural expressions like 'today', 'tomorrow', or 'next Saturday'.",
+                "description": "Cancel a reservation using reservation date (and optionally reservation time).",
                 "parameters": {
                     "type": "object",
                     "required": ["reservation_date"],
                     "properties": {
                         "reservation_date": {
                             "type": "string",
-                            "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
+                            "description": "Reservation date.",
                         },
                         "reservation_time": {
                             "type": "string",
@@ -302,14 +302,14 @@ def function_tools():
             "type": "function",
             "function": {
                 "name": "get_customer_reservations",
-                "description": "Retrieve all based on reservation date (and optionally reservation time). Accept natural expressions like 'today', 'tomorrow', or 'next Saturday' and reservation status.",
+                "description": "Retrieve all based on reservation date (and optionally reservation time).",
                 "parameters": {
                     "type": "object",
                     "required": ["reservation_date", "reservation_status"],
                     "properties": {
                         "reservation_date": {
                             "type": "string",
-                            "description": "Reservation date. Accepts natural phrases like 'today', 'tomorrow', 'next Saturday', or exact YYYY-MM-DD.",
+                            "description": "Reservation date.",
                         },
                         "reservation_status": {
                             "type": "string",
