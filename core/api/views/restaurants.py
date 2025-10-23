@@ -85,6 +85,8 @@ class RestaurantTableListView(ListCreateAPIView):
     queryset = RestaurantTable.objects.all()
     serializer_class = RestaurantTableSerializer
     permission_classes = [IsOwner]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["status"]
 
     def perform_create(self, serializer):
         restaurant_uid = self.kwargs.get("restaurant_uid")

@@ -24,6 +24,7 @@ from apps.restaurant.models import (
     RestaurantDocument,
     Promotion,
     PromotionSentLog,
+    SalesLevel,
 )
 
 logger = logging.getLogger(__name__)
@@ -466,7 +467,11 @@ def handle_get_available_tables(call, organization) -> Dict[str, Any]:
     for table in all_tables:
         is_available = is_table_available(table, reservation_date, reservation_time)
 
-        table_info = {"uid": str(table.uid), "name": table.name}
+        table_info = {
+            "uid": str(table.uid),
+            "name": table.name,
+            "time": reservation_time,
+        }
 
         if is_available:
             available_tables.append(table_info)
@@ -518,6 +523,7 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
         special_notes = args.get("special_notes", "")
 
         promotion = None
+        sales_level_reward = None
 
         if booking_reason and reason_for_visit_date:
             reason_for_visit_date = datetime.strptime(
@@ -530,6 +536,14 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
                 customer.anniversary_date = reason_for_visit_date
 
             customer.save()
+
+        sales_level = SalesLevel.objects.filter(organization=organization).first()
+
+        if sales_level and (
+            sales_level.level == 2 or sales_level.reward_enabled is True
+        ):
+            if sales_level.reward is not None:
+                sales_level_reward = sales_level.reward
 
         if promo_code:
             try:
@@ -643,6 +657,7 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
                 reservation_reason=booking_reason,
                 notes=special_notes,
                 promo_code=promotion.reward if promotion else None,
+                sales_level_reward=sales_level_reward if sales_level_reward else None,
                 reservation_phone=reservation_phone,
                 reservation_status=ReservationStatus.PLACED,
             )
