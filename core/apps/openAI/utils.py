@@ -1,7 +1,7 @@
 import json
 import logging
 import time
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, time as dtime
 from openai import OpenAI
 from typing import Dict, Any, Optional, List
 from collections import Counter
@@ -437,6 +437,8 @@ def handle_get_available_tables(call, organization) -> Dict[str, Any]:
         return {"error": "Number of guests is required"}
 
     reservation_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    reservation_time = None
+    
     if time_str:
         reservation_time = datetime.strptime(time_str, "%H:%M").time()
 
@@ -470,7 +472,7 @@ def handle_get_available_tables(call, organization) -> Dict[str, Any]:
         table_info = {
             "uid": str(table.uid),
             "name": table.name,
-            "time": reservation_time,
+            "time": str(reservation_time) if reservation_time else None,
         }
 
         if is_available:
@@ -1251,7 +1253,7 @@ def handle_get_priority_menu_items(call, organization) -> Dict[str, Any]:
 def is_table_available(
     table: RestaurantTable,
     reservation_date: date,
-    reservation_time: Optional[datetime.time] = None,
+    reservation_time: Optional[dtime] = None,
 ) -> bool:
     """Check if a table is available at the specified date and time"""
     try:
@@ -1265,24 +1267,18 @@ def is_table_available(
             ],
         }
 
-        if reservation_time:
-            # Calculate time range -3 and +1 hours
-            start_time = (
-                datetime.combine(reservation_date, reservation_time)
-                - timedelta(hours=3)
-            ).time()
-            end_time = (
-                datetime.combine(reservation_date, reservation_time)
-                + timedelta(hours=1)
-            ).time()
-
+        # Only apply time range if reservation_time is provided
+        if reservation_time is not None:
+            base_dt = datetime.combine(reservation_date, reservation_time)
+            start_time = (base_dt - timedelta(hours=1, minutes=30)).time()
+            end_time = (base_dt + timedelta(hours=1, minutes=30)).time()
             base_filter["reservation_time__range"] = (start_time, end_time)
 
         conflicting_reservations = Reservation.objects.filter(**base_filter)
         return not conflicting_reservations.exists()
 
     except Exception as e:
-        logger.error(f"Error checking table availability: {str(e)}")
+        print(f"Error in is_table_available: {e}")
         return False
 
 

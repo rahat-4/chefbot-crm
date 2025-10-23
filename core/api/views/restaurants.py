@@ -23,7 +23,7 @@ from apps.organization.models import (
     MessageTemplate,
 )
 from apps.organization.choices import OrganizationType
-from apps.restaurant.choices import MenuStatus, RewardCategory
+from apps.restaurant.choices import MenuStatus, RewardCategory, TableStatus
 from apps.restaurant.models import (
     RestaurantTable,
     Menu,
@@ -31,6 +31,7 @@ from apps.restaurant.models import (
     RestaurantDocument,
     Promotion,
 )
+from apps.openAI.utils import is_table_available
 
 from common.permissions import IsOwner
 from common.filters import ReservationFilter
@@ -110,6 +111,47 @@ class RestaurantTableDetailView(RetrieveUpdateDestroyAPIView):
         table_uid = self.kwargs.get("table_uid")
 
         return self.queryset.get(organization__uid=restaurant_uid, uid=table_uid)
+
+
+class RestaurantAvailableTablesView(ListAPIView):
+    serializer_class = RestaurantTableSerializer
+    permission_classes = [IsOwner]
+
+    def get_queryset(self):
+        restaurant_uid = self.kwargs.get("restaurant_uid")
+        reservation_date_str = self.request.query_params.get("reservation_date")
+        reservation_time_str = self.request.query_params.get("reservation_time")
+
+        if not (reservation_date_str and reservation_time_str):
+            raise ValidationError(
+                {
+                    "detail": "Both 'reservation_date' and 'reservation_time' query parameters are required."
+                }
+            )
+
+        try:
+            reservation_date = datetime.strptime(
+                reservation_date_str, "%Y-%m-%d"
+            ).date()
+            reservation_time = datetime.strptime(reservation_time_str, "%H:%M").time()
+        except ValueError:
+            raise ValidationError(
+                {
+                    "detail": "Invalid date or time format. Use 'YYYY-MM-DD' for date and 'HH:MM' for time."
+                }
+            )
+
+        all_tables = RestaurantTable.objects.filter(
+            organization__uid=restaurant_uid, status=TableStatus.AVAILABLE
+        )
+
+        available_tables = []
+        for table in all_tables:
+            is_available = is_table_available(table, reservation_date, reservation_time)
+            if is_available:
+                available_tables.append(table)
+
+        return available_tables
 
 
 class RestaurantMenuListView(ListCreateAPIView):

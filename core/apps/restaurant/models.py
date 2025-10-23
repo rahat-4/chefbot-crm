@@ -464,7 +464,7 @@ class Reservation(BaseModel):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"UID: {self.uid} | Date: {self.reservation_date} | Time: {self.reservation_time} | Restaurant: {self.organization.name} | Status: {self.reservation_status} | Client: {self.client.whatsapp_number}"
+        return f"UID: {self.uid} | Date: {self.reservation_date} | Time: {self.reservation_time} | Restaurant: {self.organization.name} | Status: {self.reservation_status} | Client: {self.client.whatsapp_number} | Table: {self.table.name}"
 
     def save(self, *args, **kwargs):
         """

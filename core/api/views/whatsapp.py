@@ -1,5 +1,6 @@
 import logging
 from openai import OpenAI
+from datetime import datetime
 
 from django.conf import settings
 from django.http import JsonResponse, HttpResponse
@@ -99,11 +100,19 @@ def whatsapp_bot(request):
             thread_id=customer.thread_id, role="user", content=incoming_message
         )
 
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        current_year = datetime.now().year
+
+        # Inject live date at runtime
+        runtime_context = (
+            f"Today’s date is {current_date}, and the current year is {current_year}."
+        )
+
         # Create and process run
         run = openai_client.beta.threads.runs.create(
             thread_id=customer.thread_id,
             assistant_id=assistant_id,
-            # instructions=instructions,
+            instructions=f"{instructions}\n\n{runtime_context}",
         )
 
         # Cheack media available in incoming message

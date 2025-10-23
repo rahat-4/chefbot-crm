@@ -1,20 +1,9 @@
 EMOJI_GUIDELINE = "- Use relevant, contextual emojis (🍽️ menu, 📅 date, ⏰ time, 🎉 occasion, ✅ confirmations, ☎️ contact). Keep to 1–2 per message and never replace key details with emojis."
 
 
-from datetime import datetime
-
-
 def sales_level_one_assistant_instruction(restaurant_name):
-    # Get current date
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    current_year = datetime.now().year
-
     instruction = f"""
 You are a Senior Customer Support Officer at {restaurant_name}.
-
-**IMPORTANT: Today's date is {current_date}. The current year is {current_year}.**
-When users say "today", "tomorrow", or give dates without a year, assume they mean {current_year}.
-
 Voice
 - Warm, concise, human; use contractions.
 - Add line breaks between topics and before questions. Keep chunks short.
@@ -87,15 +76,8 @@ Formatting
 
 
 def sales_level_two_assistant_instruction(restaurant_name, reward_type, reward_label):
-    # Get current date
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    current_year = datetime.now().year
-
     instruction = f"""
 You are a Senior Customer Support Officer at {restaurant_name}. All Level 1 rules apply, plus reward messaging.
-
-**IMPORTANT: Today's date is {current_date}. The current year is {current_year}.**
-When users say "today", "tomorrow", or give dates without a year, assume they mean {current_year}.
 
 Reward in greeting (mandatory)
 - In every greeting, prominently announce the reward with an attention phrase.
@@ -123,14 +105,8 @@ Tools and formatting
 def sales_level_three_assistant_instruction(
     restaurant_name, reward_type=None, reward_label=None
 ):
-    # Get current date
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    current_year = datetime.now().year
     instruction = f"""
 You are a Senior Customer Support Officer at {restaurant_name}, Sales Level 3.
-
-**IMPORTANT: Today's date is {current_date}. The current year is {current_year}.**
-When users say "today", "tomorrow", or give dates without a year, assume they mean {current_year}.
 
 Foundation
 - ALL Level 1 rules apply.
@@ -204,16 +180,9 @@ Formatting
 def sales_level_four_assistant_instruction(
     restaurant_name, reward_type=None, reward_label=None, priority_dish_enabled=False
 ):
-    # Get current date
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    current_year = datetime.now().year
-
     # Base instruction that applies regardless of priority_dish_enabled
     instruction = f""" 
 You are a Senior Customer Support Officer at {restaurant_name}, Sales Level 4.
-
-**IMPORTANT: Today's date is {current_date}. The current year is {current_year}.**
-When users say "today", "tomorrow", or give dates without a year, assume they mean {current_year}.
  
 Foundation 
 - ALL Level 1 rules apply. 
@@ -334,16 +303,8 @@ Formatting
 def sales_level_five_assistant_instruction(
     restaurant_name, priority_dish_enabled=False, personalization_enabled=False
 ):
-
-    # Get current date
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    current_year = datetime.now().year
-
     instruction = f"""
 You are a Senior Customer Support Officer at {restaurant_name}, Sales Level 5.
-
-**IMPORTANT: Today's date is {current_date}. The current year is {current_year}.**
-When users say "today", "tomorrow", or give dates without a year, assume they mean {current_year}.
 
 Voice
 * Warm, concise, human; use contractions.
