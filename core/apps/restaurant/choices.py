@@ -57,17 +57,13 @@ class ReservationStatus(models.TextChoices):
 
 
 class TableCategory(models.TextChoices):
-    FAMILY = "FAMILY", "Family"
-    COUPLE = "COUPLE", "Couple"
-    SINGLE = "SINGLE", "Single"
-    GROUP = "GROUP", "Group"
+    PUBLIC = "PUBLIC", "Public"
     PRIVATE = "PRIVATE", "Private"
 
 
 class TableStatus(models.TextChoices):
     AVAILABLE = "AVAILABLE", "Available"
     UNAVAILABLE = "UNAVAILABLE", "Unavailable"
-    RESERVED = "RESERVED", "Reserved"
 
 
 class ClientSource(models.TextChoices):

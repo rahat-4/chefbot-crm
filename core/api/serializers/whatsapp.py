@@ -109,6 +109,7 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop("organization_uid", None)
+        currency = self.context["request"].user.currency
 
         with transaction.atomic():
             # Create Sales Level 1
@@ -123,7 +124,7 @@ class RestaurantWhatsAppSerializer(serializers.ModelSerializer):
             assistant = create_assistant(
                 client,
                 f"{organization.name} whatsapp reservation assistant with sales level 1",
-                sales_level_one_assistant_instruction(organization.name),
+                sales_level_one_assistant_instruction(organization.name, currency),
                 function_tools(),
             )
 
@@ -226,6 +227,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         sales_level = instance.sales_level
         organization = instance.organization
         reward = None
+        currency = self.context["request"].user.currency
 
         # Decrypt sensitive data
         openai_key = decrypt_data(instance.openai_key, settings.CRYPTO_PASSWORD)
@@ -262,6 +264,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
 
             # Update Assistant
             self._update_assistant(
+                currency,
                 client,
                 assistant_id,
                 organization,
@@ -289,6 +292,7 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
 
     def _update_assistant(
         self,
+        currency,
         client,
         assistant_id,
         organization,
@@ -302,49 +306,53 @@ class RestaurantWhatsAppDetailSerializer(serializers.ModelSerializer):
         org_name = organization.name
 
         if level == 1:
-            instructions = sales_level_one_assistant_instruction(org_name)
+            instructions = sales_level_one_assistant_instruction(org_name, currency)
         elif level == 2 and reward:
             instructions = sales_level_two_assistant_instruction(
-                org_name, reward.type, reward.label
+                org_name, currency, reward.type, reward.label
             )
         elif level == 3:
             instructions = (
                 sales_level_three_assistant_instruction(
-                    org_name, reward.type, reward.label
+                    org_name, currency, reward.type, reward.label
                 )
                 if reward and reward_enabled
-                else sales_level_three_assistant_instruction(org_name)
+                else sales_level_three_assistant_instruction(org_name, currency)
             )
         elif level == 4:
             if reward and reward_enabled and priority_dish_enabled:
                 instructions = sales_level_four_assistant_instruction(
-                    org_name, reward.type, reward.label, priority_dish_enabled
+                    org_name, currency, reward.type, reward.label, priority_dish_enabled
                 )
             elif reward and reward_enabled:
                 instructions = sales_level_four_assistant_instruction(
-                    org_name, reward.type, reward.label
+                    org_name, currency, reward.type, reward.label
                 )
             elif priority_dish_enabled:
                 instructions = sales_level_four_assistant_instruction(
-                    org_name, priority_dish_enabled
+                    org_name, currency, priority_dish_enabled
                 )
             else:
-                instructions = sales_level_four_assistant_instruction(org_name)
+                instructions = sales_level_four_assistant_instruction(
+                    org_name, currency
+                )
         elif level == 5:
             if priority_dish_enabled and personalization_enabled:
                 instructions = sales_level_five_assistant_instruction(
-                    org_name, priority_dish_enabled, personalization_enabled
+                    org_name, currency, priority_dish_enabled, personalization_enabled
                 )
             elif priority_dish_enabled:
                 instructions = sales_level_five_assistant_instruction(
-                    org_name, priority_dish_enabled
+                    org_name, currency, priority_dish_enabled
                 )
             elif personalization_enabled:
                 instructions = sales_level_five_assistant_instruction(
-                    org_name, personalization_enabled
+                    org_name, currency, personalization_enabled
                 )
             else:
-                instructions = sales_level_five_assistant_instruction(org_name)
+                instructions = sales_level_five_assistant_instruction(
+                    org_name, currency
+                )
         else:
             return  # No update for unknown level
 

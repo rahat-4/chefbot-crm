@@ -32,6 +32,7 @@ class MeSerializer(serializers.ModelSerializer):
             "gender",
             "date_of_birth",
             "language",
+            "currency",
             "organizations",
         ]
         read_only_fields = ["uid", "phone", "email", "organizations"]
@@ -53,6 +54,7 @@ class UserRegistrationSessionSerializer(serializers.ModelSerializer):
             "phone",
             "gender",
             "date_of_birth",
+            "currency",
         ]
 
     def validate_email(self, value):
@@ -112,6 +114,7 @@ class UserPasswordSetSerializer(serializers.Serializer):
             phone=self.session.phone,
             gender=self.session.gender,
             date_of_birth=self.session.date_of_birth,
+            currency=self.session.currency,
         )
 
         self.session.delete()

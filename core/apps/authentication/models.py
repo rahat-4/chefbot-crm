@@ -6,7 +6,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 
 from common.models import BaseModel
 
-from .choices import UserGender, UserStatus, UserType, WebsiteLanguage
+from .choices import UserGender, UserStatus, UserType, WebsiteLanguage, Currency
 from .managers import UserManager
 from .utils import get_user_media_path_prefix
 
@@ -47,6 +47,11 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
         choices=WebsiteLanguage.choices,
         default=WebsiteLanguage.ENGLISH,
     )
+    currency = models.CharField(
+        max_length=10,
+        choices=Currency.choices,
+        default=Currency.EUR,
+    )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
@@ -84,6 +89,11 @@ class RegistrationSession(BaseModel):
         default=UserGender.MALE,
     )
     date_of_birth = models.DateField(blank=True, null=True)
+    currency = models.CharField(
+        max_length=10,
+        choices=Currency.choices,
+        default=Currency.EUR,
+    )
     user_type = models.CharField(
         max_length=20,
         choices=UserType.choices,

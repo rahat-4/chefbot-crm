@@ -29,13 +29,85 @@ def generate_nutrition_info(ingredients: List[str], client: OpenAI) -> Dict:
         ingredients_text = ", ".join(ingredients)
 
         prompt = f""" 
-        You are a professional nutritionist. Analyze these EXACT ingredients with their specified quantities: {ingredients_text}
+        You are a professional nutritionist and allergen safety expert. Analyze these EXACT ingredients with their specified quantities: {ingredients_text}
         
         Calculate nutrition information for the TOTAL recipe made from ALL these ingredients combined (not per 100g).
         
         Tasks:
-        1. Allergens: List all allergens present in these specific ingredients
-        2. Macronutrients: Calculate nutritional values for the entire dish made from these exact quantities
+        1. ALLERGEN DETECTION (CRITICAL - DO NOT MISS ANY):
+           
+           FOR EACH INGREDIENT, CHECK THESE ALLERGENS SYSTEMATICALLY:
+           
+           a) DAIRY/MILK ALLERGENS:
+              - milk, cream, butter, ghee, cheese, yogurt, whey, casein, lactose
+              - Check: ice cream, chocolate, baked goods, sauces, dressings
+              - Hidden sources: margarine (may contain whey), processed meats
+           
+           b) EGG ALLERGENS:
+              - whole eggs, egg whites, egg yolks, egg powder
+              - Check: mayonnaise, pasta, baked goods, sauces, breading
+              - Hidden sources: albumin, lecithin (if from egg), lysozyme
+           
+           c) GLUTEN/WHEAT ALLERGENS:
+              - wheat, barley, rye, spelt, kamut, triticale
+              - Check: bread, pasta, flour, couscous, bulgur, semolina
+              - Hidden sources: soy sauce, malt, modified food starch, hydrolyzed protein
+           
+           d) TREE NUT ALLERGENS:
+              - almonds, walnuts, cashews, pecans, pistachios, hazelnuts, macadamia
+              - brazils, pine nuts, chestnuts
+              - Check: nut butters, oils, pesto, baked goods, granola
+              - Hidden sources: natural flavoring, marzipan, nougat
+           
+           e) PEANUT ALLERGENS (separate from tree nuts):
+              - peanuts, peanut butter, peanut oil, peanut flour
+              - Hidden sources: African, Asian, Mexican cuisine, some sauces
+           
+           f) SOY ALLERGENS:
+              - soybeans, tofu, tempeh, edamame, soy milk, soy sauce
+              - Check: vegetable oil, lecithin, protein isolates
+              - Hidden sources: vegetable broth, Asian sauces, processed foods
+           
+           g) FISH ALLERGENS:
+              - ALL fish species (salmon, tuna, cod, tilapia, etc.)
+              - Check: fish sauce, Worcestershire sauce, Caesar dressing
+              - Hidden sources: surimi (imitation crab), some omega-3 supplements
+           
+           h) SHELLFISH ALLERGENS:
+              - Crustaceans: shrimp, crab, lobster, crayfish
+              - Mollusks: clams, mussels, oysters, scallops, squid, octopus
+              - Hidden sources: seafood flavoring, surimi, Asian sauces
+           
+           i) SESAME ALLERGENS:
+              - sesame seeds, tahini, sesame oil
+              - Check: hummus, baked goods, breadings, Asian dishes
+              - Hidden sources: spice blends, halvah, some salad dressings
+           
+           j) MUSTARD ALLERGENS:
+              - mustard seeds, mustard powder, mustard sauce
+              - Hidden sources: curry powder, pickles, salad dressings, sauces
+           
+           k) CELERY ALLERGENS:
+              - celery stalks, celery root (celeriac), celery seeds, celery salt
+              - Hidden sources: vegetable broth, spice blends, soups
+           
+           l) LUPIN ALLERGENS:
+              - lupin beans, lupin flour
+              - Hidden sources: baked goods, pasta, meat substitutes (common in EU)
+           
+           m) SULFITE ALLERGENS:
+              - dried fruits, wine, some processed foods
+              - Check for: sulfur dioxide, sodium sulfite/bisulfite/metabisulfite
+        
+        2. DETECTION RULES (FOLLOW STRICTLY):
+           - Check EACH ingredient against ALL allergen categories above
+           - Include allergen even if amount is small (cross-contamination risk)
+           - Look for DERIVED ingredients (e.g., whey from milk, albumin from eggs)
+           - Check processed/packaged ingredients for hidden allergens
+           - When uncertain, INCLUDE the allergen (safety first)
+           - Use specific names: "milk/dairy" not just "dairy", "tree nuts (almonds)" not just "nuts"
+        
+        3. MACRONUTRIENTS: Calculate nutritional values for the entire dish made from these exact quantities
         
         IMPORTANT CALCULATION RULES:
         - Use the EXACT quantities provided (e.g., if 500ml milk + 200g onion, calculate for that total amount)
@@ -43,11 +115,9 @@ def generate_nutrition_info(ingredients: List[str], client: OpenAI) -> Dict:
         - Be precise with quantities - don't estimate "typical servings"
         - Include significant nutrients based on the actual ingredients and amounts
         
-        Common allergens to check: milk/dairy, eggs, gluten/wheat, nuts, soy, shellfish, fish, sesame
-        
         Respond in this EXACT JSON format (numbers only, no units in values):
         {{
-            "allergens": ["list actual allergens found"],
+            "allergens": ["list ALL allergens found - be specific like 'milk/dairy', 'tree nuts (walnuts)', 'gluten/wheat'"],
             "macronutrients": {{
                 "calories": numeric_value_in_kcal,
                 "protein": numeric_value_in_grams,
@@ -63,9 +133,17 @@ def generate_nutrition_info(ingredients: List[str], client: OpenAI) -> Dict:
             }}
         }}
         
-        CRITICAL: 
+        CRITICAL ALLERGEN REMINDERS:
+        - Butter contains DAIRY - always flag it
+        - Mayonnaise contains EGGS - always flag it
+        - Soy sauce contains SOY and often GLUTEN - always flag both
+        - Bread/pasta/flour contains GLUTEN - always flag it
+        - Pesto may contain TREE NUTS and DAIRY - check and flag
+        - Check ALL processed ingredients for hidden allergens
+        - When in doubt, INCLUDE the allergen
+        
+        CRITICAL NUTRITION FORMAT: 
         - Only numeric values in macronutrients (no "g", "mg", "kcal" in the JSON)
-        - Only include allergens actually present in the ingredients
         - Calculate for the TOTAL recipe, not per serving or per 100g
         - If a nutrient is negligible, set to 0
         """
@@ -75,12 +153,26 @@ def generate_nutrition_info(ingredients: List[str], client: OpenAI) -> Dict:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert nutritionist with access to comprehensive food databases. Provide precise calculations based on exact ingredient quantities.",
+                    "content": """You are an expert nutritionist and certified allergen safety specialist with access to comprehensive food databases. 
+                    
+                    YOUR PRIMARY RESPONSIBILITY: Never miss an allergen. It's better to over-report than under-report allergens as this is a safety issue.
+                    
+                    For allergen detection:
+                    - Systematically check EVERY ingredient against ALL major allergen categories
+                    - Look for hidden allergens in processed foods, sauces, and additives
+                    - Consider cross-contamination and derived ingredients
+                    - Use specific allergen names (e.g., "milk/dairy" not "lactose", "tree nuts (almonds)" not "nuts")
+                    - When uncertain, ALWAYS include the potential allergen
+                    
+                    For nutrition calculations:
+                    - Provide precise calculations based on exact ingredient quantities
+                    - Sum all ingredients for total recipe nutrition
+                    """,
                 },
                 {"role": "user", "content": prompt},
             ],
             temperature=0.1,  # Low temperature for consistency
-            max_tokens=600,  # Slightly more tokens for complex calculations
+            max_tokens=800,  # More tokens for detailed allergen analysis
         )
 
         content = response.choices[0].message.content
@@ -175,7 +267,8 @@ def generate_nutrition_info(ingredients: List[str], client: OpenAI) -> Dict:
                     unit = unit_mapping.get(nutrient, "g")
                     processed_macros[nutrient] = f"0{unit}"
 
-            print(f"Nutrition ---------------------data: {nutrition_data}")
+            print(f"Nutrition data: {nutrition_data}")
+            print(f"Allergens detected: {allergens}")
 
             return nutrition_data
 

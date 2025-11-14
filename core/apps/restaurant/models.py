@@ -319,7 +319,7 @@ class RestaurantTable(BaseModel):
     name = models.CharField(max_length=255)
     capacity = models.PositiveSmallIntegerField()
     category = models.CharField(
-        max_length=20, choices=TableCategory.choices, default=TableCategory.SINGLE
+        max_length=20, choices=TableCategory.choices, default=TableCategory.PUBLIC
     )
     position = models.TextField(blank=True, null=True)
     status = models.CharField(
@@ -339,7 +339,7 @@ class RestaurantTable(BaseModel):
         unique_together = ["organization", "name"]
 
     def __str__(self):
-        return f"UID: {self.uid} | Name: {self.name} | Restaurant: {self.organization.name}"
+        return f"UID: {self.uid} | Name: {self.name} | Restaurant: {self.organization.name} | Category: {self.category}"
 
 
 class Client(BaseModel):

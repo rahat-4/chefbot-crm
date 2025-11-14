@@ -27,3 +27,13 @@ class WebsiteLanguage(models.TextChoices):
 
     def __str__(self):
         return self.label
+
+
+class Currency(models.TextChoices):
+    USD = "USD", _("US Dollar")
+    EUR = "EUR", _("Euro")
+    YEN = "YEN", _("Japanese Yen")
+    AED = "AED", _("UAE Dirham")
+
+    def __str__(self):
+        return self.label
