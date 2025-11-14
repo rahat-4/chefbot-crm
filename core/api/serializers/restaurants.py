@@ -353,13 +353,16 @@ class RestaurantMenuSerializer(serializers.ModelSerializer):
 
         if ingredients:
             # Convert ingredients dict to formatted list for AI
-            formatted_ingredients = []
-            for ingredient, quantity in ingredients.items():
-                formatted_ingredients.append(f"{ingredient} ({quantity})")
+            formatted_ingredients = [
+                f"{ingredient} ({quantity})"
+                for ingredient, quantity in ingredients.items()
+            ]
 
             print(f"Generating nutrition info for: {formatted_ingredients}")  # Debug
 
             openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
+            # Get language preference from context (default to 'en')
 
             # Call the AI function with formatted ingredients
             response = generate_nutrition_info(formatted_ingredients, openai_client)
