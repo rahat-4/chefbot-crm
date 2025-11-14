@@ -94,10 +94,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
             break_end = day.get("break_end_time") or time(0, 0)
 
             if (
-                any(
-                    t == time(0, 0)
-                    for t in [opening_start, opening_end, break_start, break_end]
-                )
+                any(t == time(0, 0) for t in [opening_start, opening_end])
                 and not is_closed
             ):
                 opening_hours_errors[f"{day['day'].capitalize()}"] = [

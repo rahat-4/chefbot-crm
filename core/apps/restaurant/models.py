@@ -434,6 +434,8 @@ class Reservation(BaseModel):
     cancellation_reason = models.TextField(blank=True, null=True)
     booking_reminder_sent = models.BooleanField(default=False)
     booking_reminder_sent_at = models.DateTimeField(blank=True, null=True)
+    auto_reminder_sent = models.BooleanField(default=False)
+    auto_reminder_at = models.DateTimeField(blank=True, null=True)
 
     # FK
     menus = models.ManyToManyField(Menu, blank=True, related_name="reservation_menus")
@@ -468,7 +470,9 @@ class Reservation(BaseModel):
 
     def save(self, *args, **kwargs):
         """
-        Sets the booking_reminder_sent_at field to 30 minutes before the reservation.
+        Sets:
+        - booking_reminder_sent_at  → X minutes before reservation
+        - auto_reminder_at          → 24 hours before reservation
         """
         # Combine reservation_date and reservation_time into a single datetime object
         naive_datetime = datetime.combine(self.reservation_date, self.reservation_time)
@@ -482,6 +486,9 @@ class Reservation(BaseModel):
         self.booking_reminder_sent_at = aware_datetime - timedelta(
             minutes=self.organization.reservation_booking_reminder
         )
+
+        # Calculate and set auto_reminder_at (24 hours before reservation)
+        self.auto_reminder_at = aware_datetime - timedelta(hours=24)
 
         super().save(*args, **kwargs)
 

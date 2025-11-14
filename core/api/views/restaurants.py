@@ -54,6 +54,12 @@ class RestaurantListView(ListCreateAPIView):
     queryset = Organization.objects.all()
     serializer_class = RestaurantSerializer
     permission_classes = [IsOwner]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    ordering = ["-created_at"]
 
     def get_queryset(self):
         user = self.request.user
@@ -157,6 +163,8 @@ class RestaurantAvailableTablesView(ListAPIView):
 class RestaurantMenuListView(ListCreateAPIView):
     serializer_class = RestaurantMenuSerializer
     permission_classes = [IsOwner]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    ordering = ["-created_at"]
 
     def get_queryset(self):
         restaurant_uid = self.kwargs.get("restaurant_uid")
