@@ -12,7 +12,6 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 
 from apps.restaurant.models import Promotion, PromotionSentLog, Reservation
 from apps.restaurant.choices import PromotionSentLogStatus
-from apps.organization.models import MessageTemplate
 from apps.organization.choices import OrganizationType
 
 from common.permissions import IsOwner

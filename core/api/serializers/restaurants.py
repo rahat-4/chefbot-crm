@@ -10,6 +10,7 @@ from rest_framework import serializers
 
 
 from common.openAI.generate_nutritions import generate_nutrition_info
+from common.translations import translate_day
 
 from apps.organization.choices import OrganizationType
 from apps.organization.models import (
@@ -39,10 +40,24 @@ class WhatsappBotSerializer(serializers.ModelSerializer):
 
 
 class OpeningHoursSerializer(serializers.ModelSerializer):
+    no_break = serializers.SerializerMethodField()
 
     class Meta:
         model = OpeningHours
-        exclude = ["organization", "created_at", "updated_at"]
+        fields = [
+            "day",
+            "opening_start_time",
+            "opening_end_time",
+            "break_start_time",
+            "break_end_time",
+            "no_break",
+            "is_closed",
+        ]
+
+    def get_no_break(self, obj):
+        bs = obj.break_start_time
+        be = obj.break_end_time
+        return (bs is None and be is None) or (bs == be)
 
 
 class RestaurantSerializer(serializers.ModelSerializer):
@@ -69,49 +84,64 @@ class RestaurantSerializer(serializers.ModelSerializer):
             "opening_hours",
         ]
 
+    def t(self, en, de):
+        language = self.context["request"].user.language
+        return en if language == "ENGLISH" else de
+
     def validate(self, attrs):
         opening_hours = attrs.get("opening_hours", [])
         errors = {}
 
-        # Validate WhatsApp logic
+        # WhatsApp validation
         if attrs.get("whatsapp_enabled") and not attrs.get("whatsapp_number"):
             errors["whatsapp_number"] = [
-                "This field is required when WhatsApp is enabled."
+                self.t(
+                    "This field is required when WhatsApp is enabled.",
+                    "Dieses Feld ist erforderlich, wenn WhatsApp aktiviert ist.",
+                )
             ]
 
-        # Validate each day's opening hours
         opening_hours_errors = {}
 
         for index, day in enumerate(opening_hours):
-            day_errors = {}
-
+            day_name = translate_day(self.context["request"].user.language, day["day"])
             is_closed = day.get("is_closed", False)
 
-            # Default times to 00:00:00 if not provided
             opening_start = day.get("opening_start_time") or time(0, 0)
             opening_end = day.get("opening_end_time") or time(0, 0)
             break_start = day.get("break_start_time") or time(0, 0)
             break_end = day.get("break_end_time") or time(0, 0)
 
+            # Missing times
             if (
                 any(t == time(0, 0) for t in [opening_start, opening_end])
                 and not is_closed
             ):
-                opening_hours_errors[f"{day['day'].capitalize()}"] = [
-                    "All fields must be provided unless the day is marked as closed."
+                opening_hours_errors[day_name] = [
+                    self.t(
+                        "All fields must be provided unless the day is marked as closed.",
+                        "Alle Felder müssen ausgefüllt werden, sofern der Tag nicht als geschlossen markiert ist.",
+                    )
                 ]
+
             elif not is_closed:
-                # Validate opening times
+                # Opening hours order
                 if opening_start >= opening_end:
-                    opening_hours_errors[f"{day['day'].capitalize()}"] = [
-                        "Opening start time must be before end time."
+                    opening_hours_errors[day_name] = [
+                        self.t(
+                            "Opening start time must be before end time.",
+                            "Die Öffnungsbeginnzeit muss vor der Endzeit liegen.",
+                        )
                     ]
 
-                # Validate break times if not all zero
+                # Break validation
                 if (break_start != time(0, 0)) or (break_end != time(0, 0)):
                     if not (opening_start <= break_start < break_end <= opening_end):
-                        opening_hours_errors[f"{day['day'].capitalize()}"] = [
-                            "Break time must be within the opening hours range."
+                        opening_hours_errors[day_name] = [
+                            self.t(
+                                "Break time must be within the opening hours range.",
+                                "Die Pausenzeit muss innerhalb der Öffnungszeiten liegen.",
+                            )
                         ]
                     else:
                         break_duration = datetime.combine(
@@ -119,12 +149,12 @@ class RestaurantSerializer(serializers.ModelSerializer):
                         ) - datetime.combine(datetime.today(), break_start)
 
                         if break_duration > timedelta(hours=2):
-                            opening_hours_errors[f"{day['day'].capitalize()}"] = [
-                                "Break time cannot exceed 2 hours."
+                            opening_hours_errors[day_name] = [
+                                self.t(
+                                    "Break time cannot exceed 2 hours.",
+                                    "Die Pausenzeit darf 2 Stunden nicht überschreiten.",
+                                )
                             ]
-
-            if day_errors:
-                opening_hours_errors[f"{day['day'].capitalize()}"] = day_errors
 
         if opening_hours_errors:
             errors["opening_hours"] = opening_hours_errors
