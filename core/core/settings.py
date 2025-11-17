@@ -336,7 +336,7 @@ CELERY_BEAT_SCHEDULE = {
         "task": "common.tasks.send_scheduled_promotions",
         "schedule": crontab(hour=6, minute=0),
     },
-    # Reservation reminder task - run every 10 minutes
+    # Reservation reminder task - run every 5 minutes
     "reservation-reminder-task": {
         "task": "common.tasks.reservation_reminder",
         "schedule": crontab(minute="*/5"),

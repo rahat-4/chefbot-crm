@@ -1,4 +1,6 @@
 import json
+import pytz
+from datetime import datetime
 import requests
 from celery import shared_task
 from datetime import timedelta
@@ -22,6 +24,7 @@ from apps.restaurant.choices import (
     PromotionSentLogStatus,
 )
 
+from common.timezones import get_timezone_from_country_city
 
 from .crypto import decrypt_data
 
@@ -223,21 +226,49 @@ def send_scheduled_promotions() -> None:
 @shared_task
 def reservation_reminder() -> None:
     """
-    Run periodically (e.g., every 5 minutes via a cron job or Celery)
-    to send reservation reminders scheduled to be sent now.
+    Runs every 5 minutes.
+    Sends:
+    - Booking reminders (X minutes before reservation)
+    - Auto reminders (24 hours before reservation)
+
+    Both reminder times (booking_reminder_sent_at, auto_reminder_at) must be stored in UTC.
     """
 
-    now = timezone.now()
+    now = timezone.now()  # UTC
     time_window_start = now - timedelta(minutes=5)
     time_window_end = now
 
-    reservations = Reservation.objects.filter(
+    # ---------------------------
+    # 1. BOOKING REMINDER (X minutes before)
+    # ---------------------------
+    booking_reservations = Reservation.objects.filter(
         reservation_status=ReservationStatus.PLACED,
         booking_reminder_sent=False,
         booking_reminder_sent_at__range=(time_window_start, time_window_end),
     )
 
-    print(f"Found {reservations.count()} reservations.")
+    # ---------------------------
+    # 2. AUTO REMINDER (24 hours before)
+    # ---------------------------
+    auto_reservations = Reservation.objects.filter(
+        reservation_status=ReservationStatus.PLACED,
+        auto_reminder_sent=False,
+        auto_reminder_at__range=(time_window_start, time_window_end),
+    )
+
+    print(f"Booking reminders found: {booking_reservations.count()}")
+    print(f"Auto reminders found: {auto_reservations.count()}")
+
+    # Process both types
+    _process_reservations(booking_reservations, reminder_type="booking")
+    _process_reservations(auto_reservations, reminder_type="auto")
+
+
+def _process_reservations(reservations, reminder_type="booking"):
+    """
+    Sends WhatsApp reminders for both reminder types.
+    reminder_type = "booking" or "auto"
+    """
 
     for reservation in reservations:
         whatsapp_bot = getattr(reservation.organization, "whatsapp_bots", None)
@@ -263,10 +294,30 @@ def reservation_reminder() -> None:
             )
             continue
 
+        # Convert to restaurant local time
+        restaurant_tz = get_timezone_from_country_city(
+            reservation.organization.country,
+            reservation.organization.city,
+        )
+
+        restaurant_timezone = pytz.timezone(restaurant_tz)
+        naive_res_dt = datetime.combine(
+            reservation.reservation_date, reservation.reservation_time
+        )
+        local_res_dt = restaurant_timezone.localize(naive_res_dt)
+
+        # Format depending on reminder type
+        if reminder_type == "auto":
+            # Example output: "November 18, 2025 at 06:30 PM"
+            reservation_time = local_res_dt.strftime("%B %d, %Y at %I:%M %p")
+        else:
+            # Example output: "06:30 PM"
+            reservation_time = local_res_dt.strftime("%I:%M %p")
+
         content_variables = {
             "1": reservation.organization.name,
             "2": reservation.reservation_name,
-            "3": reservation.reservation_time.strftime("%I:%M %p"),
+            "3": reservation_time,
         }
 
         print(
@@ -283,5 +334,9 @@ def reservation_reminder() -> None:
             )
 
             # Mark reminder as sent
-            reservation.booking_reminder_sent = True
-            reservation.save(update_fields=["booking_reminder_sent"])
+            if reminder_type == "booking":
+                reservation.booking_reminder_sent = True
+                reservation.save(update_fields=["booking_reminder_sent"])
+            else:
+                reservation.auto_reminder_sent = True
+                reservation.save(update_fields=["auto_reminder_sent"])

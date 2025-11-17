@@ -21,6 +21,10 @@ from apps.restaurant.choices import (
 )
 
 from common.whatsapp import send_cancellation_notification
+from common.timezones import (
+    get_timezone_from_country_city,
+    convert_utc_to_restaurant_timezone,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +109,7 @@ class ReservationSerializer(serializers.ModelSerializer):
         allow_empty=True,
         allow_null=True,
     )
+    booking_reminder_sent_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Reservation
@@ -133,7 +138,13 @@ class ReservationSerializer(serializers.ModelSerializer):
             "organization",
         ]
 
-        read_only_fields = ["uid", "cancelled_by", "reservation_end_time"]
+        read_only_fields = [
+            "uid",
+            "cancelled_by",
+            "reservation_end_time",
+            "booking_reminder_sent_at",
+            "booking_reminder_sent",
+        ]
 
     def validate(self, attrs):
         reservation_status = attrs.get("reservation_status")
@@ -150,6 +161,17 @@ class ReservationSerializer(serializers.ModelSerializer):
             attrs["cancelled_by"] = ReservationCancelledBy.SYSTEM
 
         return attrs
+
+    def get_booking_reminder_sent_at(self, obj):
+        restaurant_timezone = get_timezone_from_country_city(
+            obj.organization.country, obj.organization.city
+        )
+
+        if obj.booking_reminder_sent_at:
+            return convert_utc_to_restaurant_timezone(
+                obj.booking_reminder_sent_at, restaurant_timezone
+            )
+        return None
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)

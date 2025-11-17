@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from phonenumber_field.modelfields import PhoneNumberField
+import pytz
 
 from common.models import BaseModel
 
@@ -474,21 +475,31 @@ class Reservation(BaseModel):
         - booking_reminder_sent_at  → X minutes before reservation
         - auto_reminder_at          → 24 hours before reservation
         """
+        from common.timezones import (
+            get_timezone_from_country_city,
+            convert_utc_to_restaurant_timezone,
+        )
+
         # Combine reservation_date and reservation_time into a single datetime object
         naive_datetime = datetime.combine(self.reservation_date, self.reservation_time)
 
-        # Make timezone-aware
-        aware_datetime = timezone.make_aware(
-            naive_datetime, timezone.get_current_timezone()
+        # convert to Local restaurant Timezone
+        restaurant_tz = get_timezone_from_country_city(
+            self.organization.country, self.organization.city
         )
+        restaurant_timezone = pytz.timezone(restaurant_tz)
+        local_dt = restaurant_timezone.localize(naive_datetime)
 
-        # Calculate and set booking_reminder_sent_at based on organization's reservation_booking_reminder
-        self.booking_reminder_sent_at = aware_datetime - timedelta(
+        # Convert to UTC for storing
+        reservation_dt_utc = local_dt.astimezone(pytz.UTC)
+
+        # Compute reminder times in UTC
+        booking_reminder_delta = timedelta(
             minutes=self.organization.reservation_booking_reminder
         )
 
-        # Calculate and set auto_reminder_at (24 hours before reservation)
-        self.auto_reminder_at = aware_datetime - timedelta(hours=24)
+        self.booking_reminder_sent_at = reservation_dt_utc - booking_reminder_delta
+        self.auto_reminder_at = reservation_dt_utc - timedelta(hours=24)
 
         super().save(*args, **kwargs)
 
