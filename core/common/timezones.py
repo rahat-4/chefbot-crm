@@ -2,9 +2,12 @@ from datetime import date
 import re
 import dateparser
 import pytz
+from functools import lru_cache
 from datetime import datetime, timedelta
 from timezonefinder import TimezoneFinder
 from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut, GeocoderServiceError, GeocoderUnavailable
+import time
 
 
 def is_valid_date(date_str: str, date_format="%Y-%m-%d") -> bool:
@@ -15,16 +18,62 @@ def is_valid_date(date_str: str, date_format="%Y-%m-%d") -> bool:
         return False
 
 
-def get_timezone_from_country_city(country: str, city: str) -> str:
+# Initialize once at module level to reuse across calls
+_geolocator = Nominatim(user_agent="timezone_finder", timeout=5)
+_tf = TimezoneFinder()
 
-    geolocator = Nominatim(user_agent="timezone_finder")
-    location = geolocator.geocode(f"{city}, {country}")
+
+@lru_cache(maxsize=128)
+def get_timezone_from_country_city(country: str, city: str) -> str | None:
+    """
+    Get timezone string from country and city names.
+    Results are cached to avoid repeated API calls for the same location.
+
+    Args:
+        country: Country name
+        city: City name
+
+    Returns:
+        Timezone string (e.g., 'America/New_York') or None if not found
+    """
+    location = _geocode_with_retry(f"{city}, {country}")
 
     if location:
-        tf = TimezoneFinder()
-        tz = tf.timezone_at(lat=location.latitude, lng=location.longitude)
-        return tz
+        return _tf.timezone_at(lat=location.latitude, lng=location.longitude)
+
     return None
+
+
+def _geocode_with_retry(query: str, attempts: int = 3, initial_delay: float = 0.5):
+    """
+    Geocode a location with exponential backoff retry logic.
+
+    Args:
+        query: Location query string
+        attempts: Number of retry attempts
+        initial_delay: Initial delay in seconds for exponential backoff
+
+    Returns:
+        Location object or None if geocoding fails
+    """
+    for attempt in range(attempts):
+        try:
+            return _geolocator.geocode(query, timeout=5)
+        except (GeocoderTimedOut, GeocoderServiceError, GeocoderUnavailable):
+            if attempt == attempts - 1:
+                return None
+            time.sleep(initial_delay * (2**attempt))
+        except Exception:
+            # Catch unexpected errors to prevent 500s
+            return None
+
+    return None
+
+
+# Optional: Function to clear cache if needed
+def clear_timezone_cache():
+    """Clear the timezone lookup cache."""
+    get_timezone_from_country_city.cache_clear()
 
 
 def parse_reservation_date(user_input: str, restaurant_timezone: str) -> date:

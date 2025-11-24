@@ -163,14 +163,14 @@ class ReservationSerializer(serializers.ModelSerializer):
         return attrs
 
     def get_booking_reminder_sent_at(self, obj):
-        restaurant_timezone = get_timezone_from_country_city(
-            obj.organization.country, obj.organization.city
-        )
-
         if obj.booking_reminder_sent_at:
+            restaurant_timezone = get_timezone_from_country_city(
+                obj.organization.country, obj.organization.city
+            )
             return convert_utc_to_restaurant_timezone(
                 obj.booking_reminder_sent_at, restaurant_timezone
             )
+
         return None
 
     def to_representation(self, instance):
