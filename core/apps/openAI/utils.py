@@ -208,6 +208,9 @@ def handle_required_actions(
             "get_available_promotions": lambda: handle_get_available_promotions(
                 call, organization
             ),
+            "client_profile_update": lambda: handle_client_profile_update(
+                call, customer
+            ),
         }
 
         handler = function_handlers.get(call.function.name)
@@ -303,6 +306,36 @@ def handle_get_restaurant_information(call, organization) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error in handle_get_restaurant_information: {str(e)}")
         return {"error": f"Failed to get restaurant information: {str(e)}"}
+
+
+def handle_client_profile_update(call, customer: Client) -> Dict[str, Any]:
+    """Handle client_profile_update tool call"""
+    try:
+        args = json.loads(call.function.arguments)
+        logger.info(f"Client profile update arguments: {args}")
+
+        # Update client profile fields
+        updatable_fields = [
+            "preferences",
+            "allergens",
+            "date_of_birth",
+            "anniversary_date",
+        ]
+
+        for field in updatable_fields:
+            if field in args:
+                setattr(customer, field, args[field])
+
+        customer.save()
+
+        return {
+            "status": "success",
+            "message": "Client profile updated successfully",
+        }
+
+    except Exception as e:
+        logger.error(f"Error in handle_client_profile_update: {str(e)}")
+        return {"error": f"Failed to update client profile: {str(e)}"}
 
 
 def handle_send_menu_pdf(
@@ -438,7 +471,7 @@ def handle_get_available_tables(call, organization) -> Dict[str, Any]:
 
     reservation_date = datetime.strptime(date_str, "%Y-%m-%d").date()
     reservation_time = None
-    
+
     if time_str:
         reservation_time = datetime.strptime(time_str, "%H:%M").time()
 
@@ -520,6 +553,26 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
 
         reservation_date = datetime.strptime(reservation_date_str, "%Y-%m-%d").date()
         reservation_time = datetime.strptime(reservation_time_str, "%H:%M").time()
+
+        # For client profile updates
+        preferences = args.get("preferences", "")
+        allergens = args.get("allergens", "")
+        date_of_birth = args.get("date_of_birth", "")
+        anniversary_date = args.get("anniversary_date", "")
+        if preferences:
+            customer.preferences = preferences
+            customer.save()
+        if allergens:
+            customer.allergens = allergens
+            customer.save()
+        if date_of_birth:
+            customer.date_of_birth = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
+            customer.save()
+        if anniversary_date:
+            customer.anniversary_date = datetime.strptime(
+                anniversary_date, "%Y-%m-%d"
+            ).date()
+            customer.save()
 
         # Extract optional data
         special_notes = args.get("special_notes", "")
@@ -1111,7 +1164,7 @@ def handle_get_personalized_recommendations(
         past_reservations = Reservation.objects.filter(
             client=customer,
             organization=organization,
-            reservation_status=ReservationStatus.COMPLETED,
+            # reservation_status=ReservationStatus.COMPLETED,
         ).prefetch_related("menus")
 
         if not past_reservations.exists():

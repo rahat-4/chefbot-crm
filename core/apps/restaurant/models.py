@@ -340,7 +340,7 @@ class RestaurantTable(BaseModel):
         unique_together = ["organization", "name"]
 
     def __str__(self):
-        return f"UID: {self.uid} | Name: {self.name} | Restaurant: {self.organization.name} | Category: {self.category}"
+        return f"UID: {self.uid} | Name: {self.name} | Restaurant: {self.organization.name} | Category: {self.category} | Capacity: {self.capacity}"
 
 
 class Client(BaseModel):

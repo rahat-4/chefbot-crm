@@ -42,6 +42,35 @@ def function_tools():
         {
             "type": "function",
             "function": {
+                "name": "client_profile_update",
+                "description": "Update customer profile information such as preferences, allergens, date of birth, or anniversary date. Use this when: (1) Customer mentions birthday/anniversary as booking occasion and confirms it's theirs - use booking date. (2) Customer explicitly states their birthday/anniversary date. (3) Customer mentions dietary preferences or food allergies. Collect all necessary info from customer before calling.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "preferences": {
+                            "type": "string",
+                            "description": "Customer's dining preferences (e.g., vegetarian, vegan, gluten-free, prefers window seating, likes spicy food). Multiple preferences can be comma-separated.",
+                        },
+                        "allergens": {
+                            "type": "string",
+                            "description": "Known food allergies or dietary restrictions (e.g., peanuts, shellfish, dairy, gluten). Multiple allergens can be comma-separated.",
+                        },
+                        "date_of_birth": {
+                            "type": "string",
+                            "description": "Customer's date of birth in YYYY-MM-DD format. Use this when customer confirms the booking is for their birthday, or when they explicitly mention their birthday date.",
+                        },
+                        "anniversary_date": {
+                            "type": "string",
+                            "description": "Customer's anniversary date in YYYY-MM-DD format. Use this when customer confirms the booking is for their anniversary, or when they explicitly mention their anniversary date.",
+                        },
+                    },
+                    "additionalProperties": False,
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "get_menu_items",
                 "description": "Retrieve menu items filtered by category and dietary classification. Collect both from customer before calling.",
                 "parameters": {
@@ -103,7 +132,7 @@ def function_tools():
             "type": "function",
             "function": {
                 "name": "book_table",
-                "description": "Create a new reservation. Ensure all info is collected. Phone number is only needed if WhatsApp is not used.",
+                "description": "Create a new reservation. Ensure all info is collected. Phone number is only needed if WhatsApp is not used. Profile data (date_of_birth, anniversary_date, allergens, preferences) should be included when mentioned by customer.",
                 "parameters": {
                     "type": "object",
                     "required": [
@@ -157,6 +186,22 @@ def function_tools():
                         "promo_code": {
                             "type": "string",
                             "description": "Optional promotional code for discounts or special offers.",
+                        },
+                        "preferences": {
+                            "type": "string",
+                            "description": "Customer's dining preferences (e.g., vegetarian, vegan, gluten-free, prefers window seating, likes spicy food). Multiple preferences can be comma-separated.",
+                        },
+                        "allergens": {
+                            "type": "string",
+                            "description": "Known food allergies or dietary restrictions (e.g., peanuts, shellfish, dairy, gluten). Multiple allergens can be comma-separated.",
+                        },
+                        "date_of_birth": {
+                            "type": "string",
+                            "description": "Customer's date of birth in YYYY-MM-DD format. Include ONLY when: (1) Customer says 'my birthday' as occasion - use booking date, OR (2) Customer confirms 'yes' when asked 'Is this for your birthday?' - use booking date, OR (3) Customer explicitly states their birthday date - use that date. DO NOT include if customer just says 'birthday' without clarification.",
+                        },
+                        "anniversary_date": {
+                            "type": "string",
+                            "description": "Customer's anniversary date in YYYY-MM-DD format. Include ONLY when: (1) Customer says 'my anniversary' as occasion - use booking date, OR (2) Customer confirms 'yes' when asked 'Is this for your anniversary?' - use booking date, OR (3) Customer explicitly states their anniversary date - use that date. DO NOT include if customer just says 'anniversary' without clarification.",
                         },
                     },
                     "additionalProperties": False,
