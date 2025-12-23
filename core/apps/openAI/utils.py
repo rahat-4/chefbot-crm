@@ -427,6 +427,11 @@ def handle_get_menu_items(call, organization) -> Dict[str, Any]:
             items.append(
                 {
                     "name": item.name,
+                    "recommended_combinations": list(
+                        item.recommended_combinations.all().values_list(
+                            "name", flat=True
+                        )
+                    ),
                     "description": item.description or "No description available",
                     "price": float(item.price),
                     "ingredients": ingredients_str,
@@ -799,6 +804,11 @@ def handle_add_menu_to_reservation(call, organization) -> Dict[str, Any]:
                 added_items.append(
                     {
                         "name": menu_item.name,
+                        "recommended_combinations": list(
+                            menu_item.recommended_combinations.all().values_list(
+                                "name", flat=True
+                            )
+                        ),
                     }
                 )
 

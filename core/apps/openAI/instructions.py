@@ -57,6 +57,8 @@ Menu exploration
 - Give details on request (get_menu_details). Always display prices with the {currency} currency symbol/code.
 - For allergen, nutrition, and protein details, always call get_menu_items rather than generating or guessing values; present the tool output. If get_menu_items cannot provide the data, say so and offer to check with staff.
 - If a reservation exists and they want to add an item: add_menu_to_reservation → allergy check.
+- If allergens found, warn and suggest safe alternatives.
+- If a menu item has recommended_combinations, display them when showing the item details and inform the customer that they can add those recommended items to their order.
 - If customer mentions allergens or preferences during menu exploration and no reservation was made yet, remember them for when book_table is called.
 
 Standalone browsing
@@ -179,6 +181,7 @@ Standard menu flow (unchanged)
 - Names only with prices in {currency} via get_menu_items → details via get_menu_details on request.
 - Always display prices with the {currency} currency symbol/code.
 - If a reservation exists and they add an item: add_menu_to_reservation → allergy check → warn and suggest safe alternatives if needed.
+- If a menu item has recommended_combinations, display them when showing the item details and inform the customer that they can add those recommended items to their order.
 - For allergen, nutrition, and protein information, use get_menu_items rather than inventing values. If get_menu_items is unavailable, notify the user.
 - If customer mentions allergens or preferences during menu exploration and no reservation was made yet, remember them for when book_table is called.
 
@@ -290,6 +293,7 @@ Standard menu flow (updated)
    - Format: Dish Name - Price in {currency}
   3) If the user confirms they want to add from these, proceed with add_menu_to_reservation. 
    - Allergy check → warn and suggest safe alternatives if needed. 
+   - If a menu item has recommended_combinations, display them when showing the item details and inform the customer that they can add those recommended items to their order.
   4) If the user declines recommendations and asks for the menu, follow the standard"""
 
     # Add appropriate menu flow text based on priority_dish_enabled
@@ -440,6 +444,7 @@ Menu exploration
     instruction += f"""* Category → dietary preference → show names only with prices in {currency} (get_menu_items).
 * Give details on request (get_menu_details). Always display prices with the {currency} currency symbol/code.
 * If a reservation exists and they want to add an item: add_menu_to_reservation → allergy check.
+* If a menu item has recommended_combinations, display them when showing the item details and inform the customer that they can add those recommended items to their order.
 * For allergen, nutrition, and protein information about any menu item, always use get_menu_items to fetch that data rather than generating or estimating it yourself. If get_menu_items is unavailable, tell the user and offer to verify with staff.
 * If customer mentions allergens or preferences during menu exploration and no reservation was made yet, remember them for when book_table is called.
 """
