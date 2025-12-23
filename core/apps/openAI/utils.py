@@ -651,8 +651,6 @@ def handle_book_table(call, organization, customer: Client) -> Dict[str, Any]:
         if reservation_datetime <= datetime.now():
             return {"error": "Cannot make reservations for past dates/times"}
 
-        logger.info("-----------fffffffffffffff--------->", reservation_datetime)
-
         # Validate guest count
         try:
             guests = int(guests)

@@ -15,6 +15,7 @@ class ClassificationChoices(models.TextChoices):
     FISH = "FISH", "Fish"
     VEGETARIAN = "VEGETARIAN", "Vegetarian"
     VEGAN = "VEGAN", "Vegan"
+    NEUTRAL = "NEUTRAL", "Neutral"
 
 
 class MenuStatus(models.TextChoices):

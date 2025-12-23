@@ -222,16 +222,16 @@ class ReservationSerializer(serializers.ModelSerializer):
 
             # Reservation data
             menus_data = validated_data.pop("menus", [])
-            reservation_status = validated_data.get("reservation_status")
+            # reservation_status = validated_data.get("reservation_status")
             reservation = Reservation.objects.create(**validated_data)
 
             # ✅ Auto-set reservation_end_time and client.last_visit if completed
-            if reservation_status == ReservationStatus.COMPLETED:
-                now = timezone.now()
-                reservation.reservation_end_time = now
-                reservation.save()
-                reservation.client.last_visit = now
-                reservation.client.save()
+            # if reservation_status == ReservationStatus.COMPLETED:
+            #     now = timezone.now()
+            #     reservation.reservation_end_time = now
+            #     reservation.save()
+            #     reservation.client.last_visit = now
+            #     reservation.client.save()
             if menus_data:
                 reservation.menus.set(menus_data)
             return reservation
